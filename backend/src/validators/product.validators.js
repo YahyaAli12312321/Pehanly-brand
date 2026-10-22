@@ -7,8 +7,23 @@ const bool = z.enum(['true', 'false']).transform((v) => v === 'true');
 const media = z.object({ url: mediaUrl(500), publicId: z.string().max(200).optional(), alt: z.string().max(160).optional(), sortOrder: z.number().int().min(0).optional() }).strict();
 const money = z.number().min(0).max(100_000_000);
 
-const wholesale = z.object({ isEnabled: z.boolean(), moq: z.number().int().min(1).max(1_000_000).optional() }).strict()
-  .refine((w) => !w.isEnabled || w.moq, { message: 'MOQ is required when wholesale is enabled', path: ['moq'] });
+const wholesaleTier = z.object({
+  minQuantity: z.number().int().min(2).max(1_000_000),
+  discountPercent: z.number().min(0.01).max(90).optional(),
+  unitPrice: z.number().min(0.01).max(100_000_000).optional(),
+  quoteOnly: z.boolean().optional(),
+}).strict().refine((t) => (t.quoteOnly ? t.discountPercent === undefined && t.unitPrice === undefined : (t.discountPercent === undefined) !== (t.unitPrice === undefined)), { message: 'A tier needs either discountPercent or unitPrice (or quoteOnly with neither)' });
+const tierOrdered = (tiers) => tiers.every((t, i) => {
+  if (i === 0) return true;
+  const prev = tiers[i - 1];
+  if (t.minQuantity <= prev.minQuantity) return false;
+  if (t.discountPercent !== undefined && prev.discountPercent !== undefined) return t.discountPercent >= prev.discountPercent;
+  if (t.unitPrice !== undefined && prev.unitPrice !== undefined) return t.unitPrice <= prev.unitPrice;
+  return true;
+});
+const wholesale = z.object({ isEnabled: z.boolean(), moq: z.number().int().min(1).max(1_000_000).optional(), tiers: z.array(wholesaleTier).max(10).optional() }).strict()
+  .refine((w) => !w.isEnabled || w.moq, { message: 'MOQ is required when wholesale is enabled', path: ['moq'] })
+  .refine((w) => !w.tiers || tierOrdered(w.tiers), { message: 'Tiers must have strictly increasing quantities, non-decreasing discounts and non-increasing unit prices', path: ['tiers'] });
 
 const seo = z.object({
   title: z.string().trim().max(120).optional(),

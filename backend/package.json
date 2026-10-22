@@ -13,6 +13,7 @@
     "test": "node --require ./test/setup-env.js --test --test-concurrency=1 test/*.test.js",
     "create-admin": "node scripts/create-admin.js",
     "ensure-admin-index": "node scripts/ensure-admin-index.js",
+    "ensure-pakistan-shipping-rule": "node scripts/ensure-pakistan-shipping-rule.js",
     "test:integration": "node --require ./test/setup-env.js --test --test-concurrency=1 test/integration/*.int.test.js",
     "sync-indexes": "node scripts/sync-indexes.js",
     "reconcile-stock": "node scripts/reconcile-stock.js",

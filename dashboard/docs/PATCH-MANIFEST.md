@@ -137,3 +137,17 @@ After deploying: `npm run ensure-admin-index` (backend).
 ## Product variants / SKUs / initial inventory fix (Admin only, no backend change)
 UPDATE `src/components/products/ProductEditor.jsx`, `src/components/products/VariantCard.jsx`, `src/components/products/variantDraft.js`;
 ADD `src/components/products/variantDraft.test.js`, `e2e/products.mocked-api.cjs`, `docs/PRODUCT-VARIANTS-FIX.md`.
+
+## Production UI + backend integration (delivery / payment / wholesale / manufacturing / printing / header)
+
+| Project | Files |
+|---|---|
+| Backend | ADD `src/services/deliveryPolicy.service.js`, `scripts/ensure-pakistan-shipping-rule.js`, `test/delivery-payment.test.js`, `test/wholesale-preview.test.js`; UPDATE constants Currency/Payment, models StoreSettings/order/Payment/Product/Wholesale, validators settings/order/shippingRule/product/wholesale, services settings/order/payment/shippingRule/wholesale, wholesale + shipping controllers/routes, `package.json`, `test/currency.test.js`, `test/phase2.test.js`, `docs/API.md` |
+| Website | see docs/PRODUCTION-UI-BACKEND-INTEGRATION.md section 2 |
+| Admin | none (no admin UI for the new settings/tier fields yet: API only) |
+
+After deploying the backend: `npm run ensure-pakistan-shipping-rule -- --rate=<PKR>`; set the wallet details via `PATCH /admin/settings`.
+
+
+## Update: wholesale redesign / Ready Packs / shipment / banners
+See PRODUCTION-UI-BACKEND-INTEGRATION.md ("Update" section). Run no migrations. Re-seed nothing. Admin ZIP changed (orders, products, wholesale pages).

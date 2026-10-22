@@ -45,10 +45,12 @@ const paymentStatus = z.enum([
   'partially_refunded',
 ]);
 
-// ADD THIS HERE
-// V1: COD only. JazzCash is deferred and must not be accepted until that gateway is implemented.
+// 'cod' (Karachi only) and 'jazzcash_manual' (customer pays the store's JazzCash wallet, staff verify).
+// The online JazzCash gateway is NOT verified/approved and is deliberately not accepted here.
+// Eligibility per address/currency is enforced by services/deliveryPolicy.service.js (not by this enum).
 const paymentMethod = z.enum([
   'cod',
+  'jazzcash_manual',
 ]);
 
 /*
@@ -195,6 +197,18 @@ exports.createRetailOrderBody = z
     shippingAddress,
 
     paymentMethod,
+
+    /*
+     * Optional JazzCash wallet transaction id the customer got when paying manually. Only meaningful
+     * (and only accepted) with paymentMethod 'jazzcash_manual'; staff still verify the payment.
+     */
+    paymentReference: z
+      .string()
+      .trim()
+      .min(4)
+      .max(64)
+      .regex(/^[A-Za-z0-9._\-\/ ]+$/, 'Use letters, numbers and - . / only')
+      .optional(),
 
     /*
      * Optional. Omitted = PKR (backward compatible). USD is accepted by the
@@ -483,6 +497,21 @@ exports.updateOrderStatusBody = z
 
 exports.updateShipmentBody = z
   .object({
+    deliveryMethod: z.enum(['local_rider', 'courier']).optional(),
+
+    riderName: z
+      .string()
+      .trim()
+      .min(1)
+      .max(120)
+      .optional(),
+
+    riderPhone: z
+      .string()
+      .trim()
+      .regex(/^[+0-9][0-9 ()-]{6,19}$/, 'Enter a valid rider phone number')
+      .optional(),
+
     courierName: z
       .string()
       .trim()
@@ -502,6 +531,9 @@ exports.updateShipmentBody = z
   .strict()
   .refine(
     (body) =>
+      body.deliveryMethod !== undefined ||
+      body.riderName !== undefined ||
+      body.riderPhone !== undefined ||
       body.courierName !==
         undefined ||
       body.trackingNumber !==

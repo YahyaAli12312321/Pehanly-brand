@@ -33,11 +33,28 @@ exports.updateBody = z
       .strict()
       .optional(),
 
+    wholesale: z
+      .object({
+        freightFlat: z.number().min(0).max(100_000_000).optional(),
+        taxPercent: z.number().min(0).max(100).optional(),
+      })
+      .strict()
+      .optional(),
+
     checkout: z
       .object({
         guestCheckoutEnabled: z.boolean().optional(),
         codEnabled: z.boolean().optional(),
         jazzcashEnabled: z.boolean().optional(),
+        jazzcashManual: z
+          .object({
+            enabled: z.boolean().optional(),
+            accountTitle: optionalText(120),
+            walletNumber: optionalText(30),
+            instructions: optionalText(600),
+          })
+          .strict()
+          .optional(),
       })
       .strict()
       .optional(),

@@ -5,12 +5,21 @@ import { usePrintingRequestMutation, usePrintingServicesQuery, useUploadMediaMut
 import Seo from '../seo/Seo';
 import { breadcrumbSchema } from '../seo/schema';
 import { EmptyBlock, ErrorBlock, FieldError, LoadingBlock } from '../components/StateViews';
+import PlacementVisualizer, { SIZE_OPTIONS } from '../components/PlacementVisualizer';
 import { ContactFields, Field, RequestSuccess, SignInGate, contactPayload, emptyContact, inputCls, validateContact } from '../components/B2BForm';
 
-const ZONES = {
-  front: ['Left Chest', 'Right Chest', 'Center Front', 'Left Sleeve'],
-  back: ['Back Collar / Nape', 'Center Back'],
-};
+// Static presentational copy: capability overview. No prices or lead times are promised here;
+// the team quotes against the real service you pick in the form below.
+const CAPABILITIES = [
+  ['print', 'Precision Printing', 'Screen, DTF and heat-transfer printing with colour-matched inks for crisp, durable artwork.'],
+  ['gesture', 'Industrial Embroidery', 'Digitised logos stitched on production machines for polos, caps, jackets and uniforms.'],
+  ['pin_drop', 'Strategic Logo Placement', 'Left chest, sleeve, back and more: choose the placement that suits the garment and your brand.'],
+  ['label', 'Woven & Care Labels', 'Branded neck labels and care labels sewn in for a finished, retail-ready garment.'],
+  ['sell', 'Debossed Hang Tags', 'Premium hang tags with your logo for presentation on the shop floor or online.'],
+  ['redeem', 'Turnkey Retail Packaging', 'Folding, tagging and bagging so orders arrive ready to sell or ship.'],
+];
+const PACKAGING = ['No preference', 'Standard polybag', 'Folded with hang tag and polybag', 'Retail-ready box / mailer', 'Bulk packed (no individual packaging)'];
+
 const MAX_FILES = 5;
 const MAX_BYTES = 10 * 1024 * 1024;
 const ALLOWED = ['image/png', 'image/jpeg', 'image/webp', 'image/svg+xml', 'application/pdf'];
@@ -23,7 +32,8 @@ export default function PrintingBrandingPage() {
   const upload = useUploadMediaMutation();
 
   const [view, setView] = useState('front');
-  const [zones, setZones] = useState([]);
+  const [placements, setPlacements] = useState({}); // zone -> { view, size, note }
+  const [packaging, setPackaging] = useState(PACKAGING[0]);
   const [contact, setContact] = useState(() => emptyContact(user));
   const [f, setF] = useState({ serviceId: '', garmentSource: 'pehanly', garmentDetails: '', colors: '', quantity: '', requirements: '', notes: '' });
   const [files, setFiles] = useState([]);
@@ -32,7 +42,12 @@ export default function PrintingBrandingPage() {
   const [done, setDone] = useState(null);
   const set = (k) => (e) => setF((s) => ({ ...s, [k]: e.target.value }));
 
-  const toggleZone = (z) => setZones((cur) => (cur.includes(z) ? cur.filter((x) => x !== z) : [...cur, z]));
+  const toggleZone = (name, v) => setPlacements((cur) => {
+    if (cur[name]) { const { [name]: _drop, ...rest } = cur; return rest; }
+    return { ...cur, [name]: { view: v, size: SIZE_OPTIONS[0], note: '' } };
+  });
+  const changeZone = (name, patch) => setPlacements((cur) => ({ ...cur, [name]: { ...cur[name], ...patch } }));
+  const zoneNames = Object.keys(placements);
 
   const onFiles = (e) => {
     const picked = Array.from(e.target.files || []);
@@ -80,8 +95,8 @@ export default function PrintingBrandingPage() {
         garmentDetails: f.garmentDetails.trim(),
         ...(colors.length ? { colors } : {}),
         quantity: q,
-        requirements: f.requirements.trim(),
-        ...(zones.length ? { placements: zones.map((name) => ({ name })) } : {}),
+        requirements: `${f.requirements.trim()}${packaging !== PACKAGING[0] ? `\n\nPackaging: ${packaging}` : ''}`,
+        ...(zoneNames.length ? { placements: zoneNames.map((name) => ({ name, description: `${placements[name].view} view · ${placements[name].size}${placements[name].note.trim() ? ` · ${placements[name].note.trim()}` : ''}`.slice(0, 1000) })) } : {}),
         ...(artwork.length ? { artwork } : {}),
         ...(f.notes.trim() ? { customerNotes: f.notes.trim() } : {}),
       });
@@ -116,9 +131,24 @@ export default function PrintingBrandingPage() {
         </div>
       </section>
 
-      <section aria-labelledby="ps-h" className="w-full px-4 sm:px-8 lg:px-12 py-16">
+      <section aria-labelledby="cap-h" className="w-full px-4 sm:px-8 lg:px-12 py-16">
         <div className="max-w-7xl mx-auto">
-          <h2 id="ps-h" className="font-headline font-bold text-3xl text-primary mb-8">Our Services</h2>
+          <h2 id="cap-h" className="font-headline font-bold text-3xl text-primary mb-8">Branding Capabilities</h2>
+          <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+            {CAPABILITIES.map(([icon, t, d]) => (
+              <li key={t} className="bg-white rounded-2xl border border-border-subtle p-6">
+                <span className="material-symbols-outlined text-primary" aria-hidden="true">{icon}</span>
+                <h3 className="font-headline font-bold text-primary mt-2">{t}</h3>
+                <p className="text-sm text-muted mt-1">{d}</p>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </section>
+
+      <section aria-labelledby="ps-h" className="w-full px-4 sm:px-8 lg:px-12 py-16 bg-surface-container-low border-y border-border-subtle">
+        <div className="max-w-7xl mx-auto">
+          <h2 id="ps-h" className="font-headline font-bold text-3xl text-primary mb-8">Services We Quote</h2>
           {isLoading ? <LoadingBlock label="Loading services…" /> : isError ? <ErrorBlock error={error} onRetry={refetch} /> : services.length === 0 ? (
             <EmptyBlock icon="print" title="Services coming soon" text="Our printing and branding services are being updated." />
           ) : (
@@ -139,22 +169,10 @@ export default function PrintingBrandingPage() {
       </section>
 
       <section aria-labelledby="pl-h" className="w-full px-4 sm:px-8 lg:px-12 py-16 bg-surface-card border-y border-border-subtle">
-        <div className="max-w-4xl mx-auto">
-          <h2 id="pl-h" className="font-headline font-bold text-3xl text-primary">Choose Your Placement</h2>
-          <p className="text-sm text-muted mt-2 mb-6">Select where you want your logo or artwork. Your choices are sent with your request.</p>
-          <div className="flex gap-2 mb-4" role="group" aria-label="Garment view">
-            {['front', 'back'].map((v) => <button key={v} type="button" aria-pressed={view === v} onClick={() => setView(v)} className={`px-4 py-2 rounded-lg text-xs font-bold uppercase cursor-pointer ${view === v ? 'bg-primary text-white' : 'bg-surface border border-border-subtle text-muted'}`}>{v} view</button>)}
-          </div>
-          <ul className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {ZONES[view].map((z) => (
-              <li key={z}>
-                <button type="button" aria-pressed={zones.includes(z)} onClick={() => toggleZone(z)} className={`w-full p-3 rounded-xl text-left flex items-center justify-between text-sm font-semibold cursor-pointer ${zones.includes(z) ? 'bg-primary text-white' : 'bg-surface hover:bg-surface-container'}`}>
-                  <span>{z}</span><span className="text-[10px] uppercase">{zones.includes(z) ? 'Selected' : 'Select'}</span>
-                </button>
-              </li>
-            ))}
-          </ul>
-          {zones.length > 0 && <p className="text-xs text-muted mt-3">Selected: {zones.join(', ')}</p>}
+        <div className="max-w-6xl mx-auto">
+          <h2 id="pl-h" className="font-headline font-bold text-3xl text-primary">Strategic Logo Placement</h2>
+          <p className="text-sm text-muted mt-2 mb-8 max-w-2xl">Tap the garment to choose where your logo or artwork goes, then set a size for each placement. Your choices are sent with your request.</p>
+          <PlacementVisualizer view={view} onView={setView} value={placements} onToggle={toggleZone} onChange={changeZone} />
         </div>
       </section>
 
@@ -200,7 +218,19 @@ export default function PrintingBrandingPage() {
                   </ul>
                 )}
               </div>
+              <Field id="pr-pack" label="Packaging"><select id="pr-pack" value={packaging} onChange={(e) => setPackaging(e.target.value)} className={inputCls(false)}>{PACKAGING.map((p) => <option key={p}>{p}</option>)}</select></Field>
               <Field id="pr-notes" label="Notes (optional)"><textarea id="pr-notes" rows={2} maxLength={3000} value={f.notes} onChange={set('notes')} className={inputCls(false)} /></Field>
+              <div className="bg-surface-container-low border border-border-subtle rounded-xl p-4 text-sm" data-testid="branding-spec">
+                <h3 className="font-headline font-bold text-xs uppercase tracking-wider text-primary mb-2">Branding specification</h3>
+                <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1">
+                  <dt className="text-muted">Service</dt><dd className="font-semibold">{services.find((x) => (x._id || x.id) === f.serviceId)?.name || 'Not chosen yet'}</dd>
+                  <dt className="text-muted">Garment</dt><dd className="font-semibold">{f.garmentSource === 'pehanly' ? 'Supplied by PEHANLY' : 'Customer supplied'}{f.garmentDetails ? ` · ${f.garmentDetails}` : ''}</dd>
+                  <dt className="text-muted">Quantity</dt><dd className="font-semibold">{f.quantity || '—'}</dd>
+                  <dt className="text-muted">Placements</dt><dd className="font-semibold">{zoneNames.length ? zoneNames.join(', ') : 'None selected (choose above)'}</dd>
+                  <dt className="text-muted">Artwork</dt><dd className="font-semibold">{files.length ? `${files.length} file${files.length > 1 ? 's' : ''}` : 'None attached'}</dd>
+                  <dt className="text-muted">Packaging</dt><dd className="font-semibold">{packaging}</dd>
+                </dl>
+              </div>
               {err && !Object.keys(err.fieldErrors || {}).length && <FieldError message={err.message} />}
               <button type="submit" disabled={busy} className="self-start px-7 py-3 rounded-lg bg-primary text-white text-xs font-bold uppercase tracking-wider cursor-pointer disabled:opacity-60">{upload.isPending ? 'Uploading artwork…' : submit.isPending ? 'Sending…' : 'Send request'}</button>
             </form>

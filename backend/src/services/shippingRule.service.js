@@ -6,6 +6,12 @@ const ShippingRule =
 const ApiError =
   require('../utils/ApiError');
 
+const deliveryPolicy =
+  require('./deliveryPolicy.service');
+
+const settingsService =
+  require('./settings.service');
+
 const {
   SHIPPING_RULE_TYPES,
 } = require('../constants/ShippingRule');
@@ -714,6 +720,24 @@ async function calculateShipping({
    * Do not silently return Rs. 0.
    * That could create accidental free shipping.
    */
+  /*
+   * Pakistan is always DELIVERABLE (see deliveryPolicy.service). Landing here for a Pakistani address
+   * means the store has not configured a rate that covers it (no city rate and no Pakistan flat rule):
+   * a configuration gap, not an unserviceable customer. Fix: add a Pakistan-wide flat ShippingRule
+   * (admin > Shipping, or `npm run ensure-pakistan-shipping-rule`).
+   */
+  if (
+    currency === 'PKR' &&
+    deliveryPolicy.isPakistan(
+      normalizedCountry,
+    )
+  ) {
+    throw ApiError.badRequest(
+      'We deliver to this location, but the delivery charge for it has not been configured yet. Please contact support.',
+      'SHIPPING_RATE_NOT_CONFIGURED',
+    );
+  }
+
   throw ApiError.badRequest(
     'Shipping is not available for this location',
     'SHIPPING_NOT_AVAILABLE',
@@ -807,7 +831,102 @@ async function getFreeShippingInfo({
   };
 }
 
+/*
+|--------------------------------------------------------------------------
+| Public Checkout Options (delivery + shipping charge + payment methods)
+|--------------------------------------------------------------------------
+|
+| POST /api/v1/shipping/options
+|
+| One call tells the checkout, for an address: is it deliverable, what does delivery cost (from
+| ShippingRule, never invented here) and which payment methods apply (deliveryPolicy). The order
+| endpoint re-checks all of it, so this is guidance for the UI, not the authority.
+|--------------------------------------------------------------------------
+*/
+
+async function getCheckoutOptions({
+  subtotal = 0,
+  city,
+  province,
+  country = 'Pakistan',
+  currency = 'PKR',
+}) {
+  const settings =
+    await settingsService.getSettings();
+
+  const pay =
+    deliveryPolicy.paymentOptions({
+      currency,
+      country,
+      city,
+      province,
+      settings,
+    });
+
+  let shipping = null;
+  let shippingIssue = null;
+
+  try {
+    const r =
+      await calculateShipping({
+        subtotal,
+        city,
+        country,
+        currency,
+      });
+
+    shipping = {
+      amount: r.amount,
+      reason: r.reason,
+      ruleName: r.ruleName,
+    };
+  } catch (error) {
+    if (
+      !String(error?.code || '').startsWith(
+        'SHIPPING_',
+      )
+    ) {
+      throw error;
+    }
+
+    shippingIssue = {
+      code: error.code,
+      message: error.message,
+    };
+  }
+
+  const wallet =
+    deliveryPolicy.manualWalletConfig(
+      settings,
+    );
+
+  return {
+    deliverable: pay.deliverable,
+    deliveryMessage: pay.deliveryReason,
+    country,
+    city,
+    province: province || null,
+    shipping,
+    shippingIssue,
+    payment: {
+      methods: pay.methods,
+      cod: pay.cod,
+      jazzcashManual: {
+        ...pay.jazzcashManual,
+        ...(pay.jazzcashManual.available
+          ? {
+              accountTitle: wallet.accountTitle,
+              walletNumber: wallet.walletNumber,
+              instructions: wallet.instructions,
+            }
+          : {}),
+      },
+    },
+  };
+}
+
 module.exports = {
+  getCheckoutOptions,
   getFreeShippingInfo,
   list,
   getById,

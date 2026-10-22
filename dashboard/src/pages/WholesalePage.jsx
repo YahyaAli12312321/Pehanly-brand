@@ -39,6 +39,7 @@ const PackEditor = ({ pack, onClose, canManage }) => {
   const [form, setForm] = useState(() => ({
     name: pack?.name || "", slug: pack?.slug || "", description: pack?.description || "",
     image: pack?.image?.url ? pack.image : null, isActive: pack?.isActive ?? true, sortOrder: pack?.sortOrder ?? 0,
+    badge: pack?.badge || "", packPrice: pack?.packPrice ?? "", compareAtValue: pack?.compareAtValue ?? "", moq: pack?.moq ?? "", dispatchText: pack?.dispatchText || "", isFeatured: pack?.isFeatured ?? false,
     items: (pack?.items || []).map((i) => ({ sku: i.sku, label: `${i.productName} · ${[i.colorName, i.size].filter(Boolean).join(" / ")} (${i.skuCode})`, quantity: i.quantity })),
   }));
   const [slugTouched, setSlugTouched] = useState(isEdit);
@@ -69,12 +70,19 @@ const PackEditor = ({ pack, onClose, canManage }) => {
     if (!SLUG_RE.test(form.slug)) e.slug = "Use lowercase letters, numbers and hyphens only.";
     if (form.items.length === 0) e.items = "Add at least one SKU.";
     if (form.items.some((i) => !(Number(i.quantity) >= 1))) e.items = "Every quantity must be 1 or more.";
+    if (form.packPrice !== "" && !(Number(form.packPrice) > 0)) e.packPrice = "Enter a price above 0, or leave empty to calculate from SKU wholesale prices.";
+    if (form.compareAtValue !== "" && !(Number(form.compareAtValue) > 0)) e.compareAtValue = "Enter a value above 0 or leave empty.";
+    if (form.moq !== "" && !(Number(form.moq) >= 1)) e.moq = "Minimum packs must be 1 or more.";
     setErrors(e); setGeneral("");
     if (Object.keys(e).length) return;
     save.mutate({
       name: form.name.trim(), slug: form.slug, ...(form.description.trim() ? { description: form.description.trim() } : {}),
       ...(form.image ? { image: { url: form.image.url, ...(form.image.publicId ? { publicId: form.image.publicId } : {}), ...(form.image.alt ? { alt: form.image.alt } : {}) } } : {}),
       items: form.items.map((i) => ({ sku: i.sku, quantity: Number(i.quantity) })), isActive: form.isActive, sortOrder: Number(form.sortOrder) || 0,
+      badge: form.badge.trim(), dispatchText: form.dispatchText.trim(), isFeatured: form.isFeatured,
+      packPrice: form.packPrice === "" ? null : Number(form.packPrice),
+      compareAtValue: form.compareAtValue === "" ? null : Number(form.compareAtValue),
+      moq: form.moq === "" ? null : Number(form.moq),
     });
   };
 
@@ -101,6 +109,14 @@ const PackEditor = ({ pack, onClose, canManage }) => {
                 {(detail.data.variants || []).map((v) => <div key={v._id} className="text-xs"><div className="text-slate-500 mb-1">{v.color?.name}</div><div className="flex flex-wrap gap-1.5">{(v.sizes || []).map((s) => <button key={s._id} type="button" onClick={() => addSku(v, s)} className="px-2 py-1 border border-slate-200 bg-white rounded hover:bg-emerald-50 font-mono">{s.size} · {s.sku}</button>)}</div></div>)}
               </div>)}
           </div>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <FormField label="Badge" error={errors.badge} hint="e.g. Best value, 50 pieces"><input className={inp} maxLength={40} value={form.badge} onChange={(e) => set("badge", e.target.value)} /></FormField>
+          <FormField label="Dispatch / SLA text" error={errors.dispatchText} hint="e.g. Ships within 24h"><input className={inp} maxLength={160} value={form.dispatchText} onChange={(e) => set("dispatchText", e.target.value)} /></FormField>
+          <FormField label="Pack wholesale price (Rs.)" error={errors.packPrice} hint="Leave empty to calculate from live SKU wholesale prices. Per-piece price is always calculated."><input type="number" min={0} step="any" className={inp} value={form.packPrice} onChange={(e) => set("packPrice", e.target.value)} /></FormField>
+          <FormField label="Reference retail value (Rs.)" error={errors.compareAtValue} hint="Optional, shown struck-through."><input type="number" min={0} step="any" className={inp} value={form.compareAtValue} onChange={(e) => set("compareAtValue", e.target.value)} /></FormField>
+          <FormField label="Minimum packs per order" error={errors.moq}><input type="number" min={1} className={inp} value={form.moq} onChange={(e) => set("moq", e.target.value)} /></FormField>
+          <label className="flex items-center gap-2 text-xs font-semibold text-slate-700 self-end pb-2"><Toggle checked={form.isFeatured} onChange={(v) => set("isFeatured", v)} /> Featured</label>
         </div>
         <div className="grid grid-cols-2 gap-3 items-end">
           <FormField label="Sort order"><input type="number" className={inp} value={form.sortOrder} onChange={(e) => set("sortOrder", e.target.value)} /></FormField>
@@ -134,12 +150,13 @@ const PacksTab = ({ canManage }) => {
         {canManage && <button className={`${btn} bg-emerald-800 text-white hover:bg-emerald-700`} onClick={() => setEditor({ pack: null })}><Plus className="w-3.5 h-3.5" />New pack</button>}
       </div>
       {q.isError ? <ErrorState error={q.error} onRetry={() => q.refetch()} className="border-0" /> : q.isLoading ? <div className="p-6"><LoadingSkeleton rows={4} /></div> : items.length === 0 ? <div className="p-12"><EmptyState title="No Wholesale Packs" description="Create a pack to offer ready-made bulk bundles." /></div> : <div className="overflow-x-auto"><table className="w-full text-left border-collapse">
-          <thead><tr className="bg-slate-50/80 border-b border-slate-200 text-[11px] font-bold uppercase tracking-wider text-slate-500"><th className="py-3 px-4">Pack</th><th className="py-3 px-4 text-center">SKUs</th><th className="py-3 px-4 text-center">Units</th><th className="py-3 px-4 text-right">Est. total</th><th className="py-3 px-4">Active</th><th className="py-3 px-4 text-right">Actions</th></tr></thead>
+          <thead><tr className="bg-slate-50/80 border-b border-slate-200 text-[11px] font-bold uppercase tracking-wider text-slate-500"><th className="py-3 px-4">Pack</th><th className="py-3 px-4 text-center">SKUs</th><th className="py-3 px-4 text-center">Units</th><th className="py-3 px-4 text-right">Pack price</th><th className="py-3 px-4 text-right">Per piece</th><th className="py-3 px-4">Active</th><th className="py-3 px-4 text-right">Actions</th></tr></thead>
           <tbody className="divide-y divide-slate-100 text-xs">{items.map((p) => <tr key={p._id} className="hover:bg-slate-50/70">
-              <td className="py-3.5 px-4"><div className="flex items-center gap-3">{p.image?.url && <img src={p.image.url} alt="" className="w-10 h-10 rounded-lg object-cover border border-slate-200" />}<div><div className="font-semibold text-slate-900">{p.name}</div><div className="text-[10px] font-mono text-slate-400">{p.slug}</div></div></div></td>
+              <td className="py-3.5 px-4"><div className="flex items-center gap-3">{p.image?.url && <img src={p.image.url} alt="" className="w-10 h-10 rounded-lg object-cover border border-slate-200" />}<div><div className="font-semibold text-slate-900">{p.name}{p.isFeatured && <span className="ml-1.5 text-[10px] text-amber-700 font-bold">★ Featured</span>}{p.badge && <span className="ml-1.5 text-[10px] px-1.5 py-0.5 bg-slate-100 rounded text-slate-600">{p.badge}</span>}</div><div className="text-[10px] font-mono text-slate-400">{p.slug}</div></div></div></td>
               <td className="py-3.5 px-4 text-center font-mono">{p.items?.length || 0}</td>
               <td className="py-3.5 px-4 text-center font-mono">{formatNumber((p.items || []).reduce((s, i) => s + i.quantity, 0))}</td>
-              <td className="py-3.5 px-4 text-right font-mono font-bold">{p.pricing?.estimatedTotal != null ? formatMoney(p.pricing.estimatedTotal) : "—"}</td>
+              <td className="py-3.5 px-4 text-right font-mono font-bold">{p.computed?.available ? formatMoney(p.computed.packPrice) : <span className="text-rose-600 font-semibold" title={p.computed?.reason}>Unavailable</span>}</td>
+              <td className="py-3.5 px-4 text-right font-mono">{p.computed?.perPiece != null ? formatMoney(p.computed.perPiece) : "—"}</td>
               <td className="py-3.5 px-4"><Toggle checked={p.isActive} disabled={!canManage || toggle.isPending} onChange={(v) => toggle.mutate({ id: p._id, isActive: v })} /></td>
               <td className="py-3.5 px-4 text-right"><button onClick={() => openEdit(p)} className="p-1.5 text-slate-400 hover:text-slate-800 hover:bg-slate-100 rounded-lg" title={canManage ? "Edit pack" : "View pack"}><Pencil className="w-4 h-4" /></button></td>
             </tr>)}</tbody></table></div>}

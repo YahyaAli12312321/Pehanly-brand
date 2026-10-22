@@ -55,3 +55,15 @@ Backend: `MONGODB_TEST_URI=<a database whose name contains "test"> npm test`. Ad
 Executed: `tsc --noEmit` OK; vitest 35/35; `vite build` OK; browser smoke 66/66; product browser test 21/21 against a STATEFUL FAKE of the catalog API
 (2 colours x M/L = 4 SKUs saved with the single Save Product button; ledger rows, table values 2 colors / 4 SKUs / 28 pcs / PKR 4,500-4,800, refresh, edit with read-only existing stock and a new initial-stock SKU, partial failure with no auto-delete).
 NOT executed: anything against a real MongoDB, real backend restart persistence. See docs/PRODUCT-VARIANTS-FIX.md section 4 for the checks to run.
+
+## Production UI + backend integration - verification
+Executed (see the final run below for exact counts): backend `npm test` with stubbed models; website `eslint`, `vitest`, `vite build`; Playwright against a MOCKED API: `e2e/smoke.mocked-api.cjs` (checkout flows E, F, G) and `e2e/flows.mocked-api.cjs` (A manufacturing, B printing, C/D wholesale, H header at 1440/1280/1024/768/390, responsive sweeps of wholesale/manufacturing/detail/gallery/printing).
+NOT executed: anything against a real MongoDB; real payment confirmation; pixel comparison with the approved screenshots; JazzCash online gateway.
+
+Final clean-room run (fresh `npm ci` from the packaged sources): backend 167/167 tests; admin `tsc` clean, 39/39 tests, build OK; website `eslint` clean, 30/30 tests, build OK. Browser (mocked API): smoke (incl. flows E, F, G) all pass; flows A, B, C, D, H and the 5-width responsive sweeps all pass.
+
+
+## Verification - wholesale/shipment/banner update
+- Backend `npm test` (stubbed models; no MongoDB available): see cleanroom result below.
+- Website: ESLint, Vitest, production build, mocked-API Playwright flows (`e2e/flows.mocked-api.cjs`, `e2e/smoke.mocked-api.cjs`) incl. PDP at 1920/1440/1366/1280/1024/768/390 and wholesale at the same widths.
+- NOT verified: anything needing real MongoDB (transactions, persistence, real catalog 401 report), real images/fonts, JazzCash online gateway, pixel-exact match to the reference screenshots.

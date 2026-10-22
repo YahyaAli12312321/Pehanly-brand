@@ -19,6 +19,12 @@ const productSchema = new mongoose.Schema(
     wholesale: {
       isEnabled: { type: Boolean, default: false },
       moq: { type: Number, min: 1 }, // total quantity across mixed colors/sizes
+      // Volume tiers: once the combined product quantity reaches minQuantity, discountPercent is
+      // taken off each SKU's wholesalePrice, OR unitPrice (flat per-piece) replaces it, OR quoteOnly marks quantities that need a custom quote. Merchant-configured; none = no volume discount.
+      tiers: {
+        type: [new mongoose.Schema({ minQuantity: { type: Number, required: true, min: 2, validate: Number.isInteger }, discountPercent: { type: Number, min: 0.01, max: 90 }, unitPrice: { type: Number, min: 0.01 }, quoteOnly: { type: Boolean, default: undefined } }, { _id: false })],
+        default: [],
+      },
     },
     seo: {
       title: { type: String, trim: true, maxlength: 120 },

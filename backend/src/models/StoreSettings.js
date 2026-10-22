@@ -32,11 +32,25 @@ const storeSettingsSchema = new mongoose.Schema(
       youtube: { type: String, trim: true, maxlength: 300 },
     },
 
+    // Wholesale commercial charges (merchant-configured). Absent = "quoted by the team", never guessed.
+    wholesale: {
+      freightFlat: { type: Number, min: 0 },
+      taxPercent: { type: Number, min: 0, max: 100 },
+    },
+
     checkout: {
       guestCheckoutEnabled: { type: Boolean, default: true },
       codEnabled: { type: Boolean, default: true },
       // Only takes effect once JazzCash credentials are configured AND verified live.
       jazzcashEnabled: { type: Boolean, default: false },
+      // Temporary manual JazzCash wallet payment. Customer-facing, NON-secret details only
+      // (never merchant ids, salts or API credentials: those stay in environment variables).
+      jazzcashManual: {
+        enabled: { type: Boolean, default: false },
+        accountTitle: { type: String, trim: true, maxlength: 120 },
+        walletNumber: { type: String, trim: true, maxlength: 30 },
+        instructions: { type: String, trim: true, maxlength: 600 },
+      },
     },
 
     returns: {

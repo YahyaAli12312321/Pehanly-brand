@@ -237,7 +237,9 @@ export default function CartPage() {
               {!isAuthenticated && <p className="text-[11px] text-muted text-center">You can check out as a guest.</p>}
 
               <ul className="pt-2 flex flex-col gap-2 text-[11px] text-muted border-t border-border-subtle">
-                {payment.methods.includes('cod') && <li className="flex items-center gap-2"><span className="material-symbols-outlined text-[16px] text-accent" aria-hidden="true">payments</span>Cash on Delivery available</li>}
+                <li className="flex items-center gap-2"><span className="material-symbols-outlined text-[16px] text-accent" aria-hidden="true">local_shipping</span>We deliver across Pakistan</li>
+                {payment.codKarachiOnly && <li className="flex items-center gap-2"><span className="material-symbols-outlined text-[16px] text-accent" aria-hidden="true">payments</span>Cash on Delivery: Karachi only</li>}
+                {payment.wallet && <li className="flex items-center gap-2"><span className="material-symbols-outlined text-[16px] text-accent" aria-hidden="true">account_balance_wallet</span>JazzCash wallet payment: all of Pakistan</li>}
                 {settings?.returns?.enabled && <li className="flex items-center gap-2"><span className="material-symbols-outlined text-[16px] text-accent" aria-hidden="true">published_with_changes</span>{settings.returns.windowDays}-day returns &amp; exchange</li>}
               </ul>
             </aside>

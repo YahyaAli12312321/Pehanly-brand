@@ -9,10 +9,11 @@ import {
   usePublicSettingsQuery,
   useReviewSummaryQuery,
   useReviewsQuery,
-  useShippingQuoteQuery,
+  useCheckoutOptionsQuery,
   QUERY_KEYS,
 } from '../hooks/useQueries';
 import { reviewsApi } from '../services/catalogApi';
+import { usePaymentAvailability } from '../hooks/usePaymentAvailability';
 import Seo from '../seo/Seo';
 import { breadcrumbSchema, productSchema } from '../seo/schema';
 import { ErrorBlock, FieldError, LoadingBlock } from '../components/StateViews';
@@ -21,6 +22,41 @@ import { discountPercent, formatDate } from '../utils/format';
 import { formatMoney, priceRange, skuCompareAt, skuPrice, soldIn } from '../utils/currency';
 import { useCurrency } from '../store/useCurrencyStore';
 import { toCartLine } from '../utils/product';
+
+/**
+ * Fixed 4:5 frame for every product image so model shots and flat mock-ups look the same size.
+ * Portrait-ish images fill the frame (cover). Landscape / very tall / square-flat mock-ups are shown whole
+ * (contain) over a soft blurred copy of themselves, so nothing is cropped and there are no empty bars.
+ */
+function FramedImage({ src, alt = '', eager = false, hoverZoom = false, width = 800, height = 1000, className = '' }) {
+  const [fit, setFit] = useState('cover');
+  useEffect(() => { setFit('cover'); }, [src]);
+  const onLoad = (e) => {
+    const { naturalWidth: w, naturalHeight: h } = e.currentTarget;
+    if (!w || !h) return;
+    const ratio = w / h;
+    setFit(ratio >= 0.6 && ratio <= 1.0 ? 'cover' : 'contain');
+  };
+  return (
+    <div className={`relative w-full h-full overflow-hidden bg-surface-container-low ${className}`}>
+      {fit === 'contain' && (
+        <img src={src} alt="" aria-hidden="true" className="absolute inset-0 w-full h-full object-cover scale-110 blur-2xl opacity-40" referrerPolicy="no-referrer" />
+      )}
+      <img
+        src={src}
+        alt={alt}
+        width={width}
+        height={height}
+        loading={eager ? 'eager' : 'lazy'}
+        fetchPriority={eager ? 'high' : undefined}
+        decoding="async"
+        referrerPolicy="no-referrer"
+        onLoad={onLoad}
+        className={`relative w-full h-full object-center ${fit === 'cover' ? 'object-cover' : 'object-contain'} ${hoverZoom ? 'transition-transform duration-500 ease-out group-hover:scale-105' : ''}`}
+      />
+    </div>
+  );
+}
 
 function Stars({ value, size = 18 }) {
   return (
@@ -111,12 +147,27 @@ function ReviewForm({ productId, onDone }) {
   );
 }
 
+/** One honest sentence from the backend's delivery/payment answer for a city. */
+function deliveryText(d, city, money) {
+  if (!d.deliverable) return d.deliveryMessage || 'We currently deliver within Pakistan only.';
+  const ship = d.shipping
+    ? `Shipping to ${city}: ${d.shipping.amount === 0 ? 'Free' : money(d.shipping.amount)}.`
+    : `We deliver to ${city}; the delivery charge is confirmed at checkout.`;
+  const pay = d.payment.cod.available
+    ? 'Cash on Delivery and JazzCash wallet payment are available.'
+    : d.payment.jazzcashManual.available
+      ? 'Cash on Delivery is available in Karachi only; you can pay by JazzCash wallet.'
+      : d.payment.cod.reason || '';
+  return `${ship} ${pay}`.trim();
+}
+
 export default function ProductDetailPage() {
   const { slug } = useParams();
   const { navigate, addToCart, toggleWishlist, isItemInWishlist } = useApp();
   const { data: product, isLoading, isError, error, refetch } = useProductQuery(slug);
   const { data: settings } = usePublicSettingsQuery();
   const { currency, setCurrency } = useCurrency();
+  const payment = usePaymentAvailability(currency);
   const money = (n) => formatMoney(n, currency);
   const { data: freeShipping } = useFreeShippingInfoQuery(currency);
   const { data: summary } = useReviewSummaryQuery(product?.id);
@@ -161,7 +212,8 @@ export default function ProductDetailPage() {
   const comparePrice = sku ? skuCompareAt(sku, currency) : null;
   const off = discountPercent(displayPrice, comparePrice);
   const availableHere = product ? soldIn(product, currency) : true;
-  const shippingQuote = useShippingQuoteQuery({ subtotal: Math.round((displayPrice || 0) * quantity * 100) / 100, city, currency }, { enabled: Boolean(city) && Boolean(displayPrice) });
+  // Backend answer for the typed city: deliverable? shipping charge (ShippingRule)? COD / JazzCash wallet?
+  const deliveryCheck = useCheckoutOptionsQuery({ subtotal: Math.round((displayPrice || 0) * quantity * 100) / 100, city, currency }, { enabled: Boolean(city) && Boolean(displayPrice) });
 
   if (isLoading) return <LoadingBlock label="Loading product…" className="py-40" />;
   if (isError && error?.status === 404) return <NotFoundPage title="Product not found" text="This product is no longer available." />;
@@ -212,8 +264,9 @@ export default function ProductDetailPage() {
       title: 'Shipping, Delivery & Payment',
       content: [
         freeShipping?.available ? `Free shipping on orders of ${money(freeShipping.minimumOrderAmount)} or more.` : null,
-        'Shipping cost is calculated from your delivery city at checkout.',
-        settings?.checkout?.codEnabled && (settings?.currencies?.paymentMethods?.[currency] ?? (currency === 'PKR' ? ['cod'] : [])).includes('cod') ? 'Cash on Delivery is available.' : null,
+        'We deliver across Pakistan. Shipping cost is calculated from your delivery city at checkout.',
+        payment.codKarachiOnly ? 'Cash on Delivery is available in Karachi only.' : null,
+        payment.wallet ? 'JazzCash wallet (manual) payment is available for all of Pakistan.' : null,
         currency === 'USD' ? 'USD checkout is not available yet; orders are currently placed in PKR.' : null,
       ].filter(Boolean).join(' '),
     },
@@ -253,11 +306,11 @@ export default function ProductDetailPage() {
       </nav>
 
       {/* 2. Main Product Showcase */}
-      <section className="max-w-7xl mx-auto px-6 md:px-12 py-10 w-full">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-14 items-start">
+      <section className="max-w-[1200px] mx-auto px-4 sm:px-8 lg:px-10 py-6 lg:py-8 w-full">
+        <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] gap-6 lg:gap-10 items-start">
           {/* Gallery */}
-          <div className="lg:col-span-7 flex flex-col gap-6">
-            <div className="flex flex-col-reverse md:flex-row gap-4">
+          <div className="min-w-0 flex flex-col gap-4">
+            <div className="flex flex-col-reverse md:flex-row gap-3 lg:gap-4">
               {gallery.length > 1 && (
                 <div className="flex md:flex-col gap-3 overflow-x-auto md:overflow-visible shrink-0 pb-2 md:pb-0" role="tablist" aria-label="Product images">
                   {gallery.map((img, idx) => (
@@ -268,24 +321,20 @@ export default function ProductDetailPage() {
                       aria-selected={activeThumb === idx}
                       aria-label={`Image ${idx + 1} of ${gallery.length}`}
                       onClick={() => setActiveThumb(idx)}
-                      className={`w-16 h-20 md:w-20 md:h-24 rounded-lg overflow-hidden bg-surface-container relative transition-all cursor-pointer ${activeThumb === idx ? 'ring-2 ring-primary opacity-100 shadow-sm' : 'opacity-70 hover:opacity-100'}`}
+                      className={`w-14 h-[4.5rem] md:w-16 md:h-20 shrink-0 rounded-lg overflow-hidden bg-surface-container relative transition-all cursor-pointer ${activeThumb === idx ? 'ring-2 ring-primary opacity-100 shadow-sm' : 'opacity-70 hover:opacity-100'}`}
                     >
-                      <img className="w-full h-full object-cover" src={img.url} alt="" width="80" height="96" loading="lazy" referrerPolicy="no-referrer" />
+                      <FramedImage src={img.url} width={80} height={100} />
                     </button>
                   ))}
                 </div>
               )}
-              <div className="relative w-full aspect-[4/5] bg-surface-container-low rounded-xl overflow-hidden shadow-sm group border border-border-subtle">
+              <div className="relative w-full min-w-0 aspect-[4/5] bg-surface-container-low rounded-xl overflow-hidden shadow-sm group border border-border-subtle mx-auto" style={{ maxWidth: 'min(100%, calc(72vh * 0.8), 560px)' }}>
                 {gallery[activeThumb] ? (
-                  <img
-                    className="w-full h-full object-cover object-center transition-transform duration-500 ease-out group-hover:scale-105"
+                  <FramedImage
                     src={gallery[activeThumb].url}
                     alt={gallery[activeThumb].alt || `${product.name}${variant?.color?.name ? ` in ${variant.color.name}` : ''}`}
-                    width="800"
-                    height="1000"
-                    fetchPriority="high"
-                    decoding="async"
-                    referrerPolicy="no-referrer"
+                    eager
+                    hoverZoom
                   />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center text-muted"><span className="material-symbols-outlined text-6xl" aria-hidden="true">checkroom</span></div>
@@ -298,12 +347,19 @@ export default function ProductDetailPage() {
               </div>
             </div>
 
-            <ul className="grid grid-cols-2 sm:grid-cols-3 gap-4 bg-white p-5 rounded-xl border border-border-subtle text-center">
-              {settings?.checkout?.codEnabled && (
+            <ul className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-2 xl:grid-cols-4 gap-3 bg-white p-4 rounded-xl border border-border-subtle text-center">
+              {payment.codKarachiOnly && (
                 <li className="flex flex-col items-center gap-1.5">
                   <span className="material-symbols-outlined text-primary text-[24px]" aria-hidden="true">payments</span>
                   <span className="text-xs uppercase font-bold tracking-wider text-on-surface">Cash on Delivery</span>
-                  <span className="text-[11px] text-muted">Pay on arrival</span>
+                  <span className="text-[11px] text-muted">Karachi only</span>
+                </li>
+              )}
+              {payment.wallet && (
+                <li className="flex flex-col items-center gap-1.5">
+                  <span className="material-symbols-outlined text-primary text-[24px]" aria-hidden="true">account_balance_wallet</span>
+                  <span className="text-xs uppercase font-bold tracking-wider text-on-surface">JazzCash Wallet</span>
+                  <span className="text-[11px] text-muted">Pay anywhere in Pakistan</span>
                 </li>
               )}
               {settings?.returns?.enabled && (
@@ -324,13 +380,13 @@ export default function ProductDetailPage() {
           </div>
 
           {/* Info panel */}
-          <div className="lg:col-span-5 flex flex-col gap-6 lg:sticky lg:top-36">
+          <div className="min-w-0 flex flex-col gap-4 lg:gap-5 lg:sticky lg:top-32">
             <div className="flex flex-col gap-2">
               <div className="flex items-center justify-between">
                 {product.category && <span className="text-xs uppercase tracking-widest text-muted font-bold">{product.category.name}</span>}
                 {sku?.sku && <span className="bg-surface-container text-primary text-[11px] px-2.5 py-0.5 rounded uppercase font-semibold">SKU: {sku.sku}</span>}
               </div>
-              <h1 className="font-headline font-bold text-2xl sm:text-3xl text-on-surface leading-tight">{product.name}</h1>
+              <h1 className="font-headline font-bold text-[clamp(1.25rem,1rem+0.9vw,1.75rem)] text-on-surface leading-tight">{product.name}</h1>
               {summary?.reviewCount > 0 && (
                 <div className="flex items-center gap-3 pt-1">
                   <Stars value={summary.averageRating} />
@@ -347,9 +403,9 @@ export default function ProductDetailPage() {
             )}
 
             {/* Pricing */}
-            <div className="bg-white p-5 rounded-xl shadow-sm border border-border-subtle flex flex-col gap-2">
+            <div className="bg-white p-4 lg:p-5 rounded-xl shadow-sm border border-border-subtle flex flex-col gap-2">
               <div className="flex items-baseline gap-3 flex-wrap">
-                <span className="font-headline text-3xl font-extrabold text-primary">
+                <span className="font-headline text-[clamp(1.375rem,1.1rem+0.8vw,1.75rem)] font-extrabold text-primary">
                   {displayPrice == null ? (availableHere ? 'Unavailable' : `Not sold in ${currency}`) : `${!sku && range.max > range.min ? 'From ' : ''}${money(displayPrice)}`}
                 </span>
                 {comparePrice && comparePrice > displayPrice && (
@@ -382,7 +438,7 @@ export default function ProductDetailPage() {
                         aria-label={v.color?.name}
                         title={v.color?.name}
                         onClick={() => { setVariantId(v.id); setSize(null); setSizeError(false); }}
-                        className={`w-9 h-9 rounded-full transition-transform cursor-pointer shadow-sm ${isSel ? 'ring-2 ring-primary ring-offset-2 scale-110' : 'hover:scale-105 ring-1 ring-border-subtle'}`}
+                        className={`w-8 h-8 rounded-full transition-transform cursor-pointer shadow-sm ${isSel ? 'ring-2 ring-primary ring-offset-2 scale-110' : 'hover:scale-105 ring-1 ring-border-subtle'}`}
                         style={{ backgroundColor: v.color?.hexCode || '#ccc' }}
                       />
                     );
@@ -484,7 +540,7 @@ export default function ProductDetailPage() {
             >
               <div className="flex items-center gap-2 text-on-surface font-semibold">
                 <span className="material-symbols-outlined text-primary text-[20px]" aria-hidden="true">location_on</span>
-                <label htmlFor="ship-city">Check delivery cost to your city</label>
+                <label htmlFor="ship-city">Check delivery &amp; payment options for your city</label>
               </div>
               <div className="flex gap-2">
                 <input id="ship-city" value={cityInput} onChange={(e) => setCityInput(e.target.value)} placeholder="e.g. Lahore" maxLength={100} className="flex-1 px-3 py-2 rounded-lg bg-surface border border-border-subtle focus:outline-none focus:border-primary" />
@@ -492,17 +548,17 @@ export default function ProductDetailPage() {
               </div>
               {city && (
                 <p aria-live="polite" className="text-muted">
-                  {shippingQuote.isFetching
+                  {deliveryCheck.isFetching
                     ? 'Checking…'
-                    : shippingQuote.isError
-                      ? shippingQuote.error?.message
-                      : shippingQuote.data
-                        ? `Shipping to ${city}: ${shippingQuote.data.amount === 0 ? 'Free' : money(shippingQuote.data.amount)}`
+                    : deliveryCheck.isError
+                      ? deliveryCheck.error?.message
+                      : deliveryCheck.data
+                        ? deliveryText(deliveryCheck.data, city, money)
                         : ''}
                 </p>
               )}
-              {settings?.checkout?.codEnabled && (
-                <p className="flex items-center gap-2 text-muted"><span className="material-symbols-outlined text-[16px] text-accent" aria-hidden="true">local_atm</span>Cash on Delivery is available</p>
+              {payment.codKarachiOnly && !city && (
+                <p className="flex items-center gap-2 text-muted"><span className="material-symbols-outlined text-[16px] text-accent" aria-hidden="true">local_atm</span>Cash on Delivery: Karachi only</p>
               )}
             </form>
           </div>
@@ -510,7 +566,7 @@ export default function ProductDetailPage() {
       </section>
 
       {/* 3. Details accordions */}
-      <section className="max-w-7xl mx-auto px-6 md:px-12 py-12 w-full border-t border-border-subtle">
+      <section className="max-w-[1200px] mx-auto px-4 sm:px-8 lg:px-10 py-10 w-full border-t border-border-subtle">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
           <div className="lg:col-span-4 flex flex-col gap-4">
             <span className="text-xs uppercase tracking-widest text-primary font-bold">Garment Details</span>
@@ -545,7 +601,7 @@ export default function ProductDetailPage() {
       </section>
 
       {/* 4. Ratings & Reviews (real data only) */}
-      <section aria-labelledby="reviews-heading" className="max-w-7xl mx-auto px-6 md:px-12 py-12 w-full border-t border-border-subtle">
+      <section aria-labelledby="reviews-heading" className="max-w-[1200px] mx-auto px-4 sm:px-8 lg:px-10 py-10 w-full border-t border-border-subtle">
         <div className="bg-white rounded-xl shadow-sm border border-border-subtle p-8 md:p-12 flex flex-col gap-8">
           <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 pb-6 border-b border-border-subtle">
             <div>
@@ -638,7 +694,7 @@ function RelatedProducts({ product }) {
   const items = (data?.items || []).filter((p) => p.id !== product.id).slice(0, 4);
   if (!items.length) return null;
   return (
-    <section aria-labelledby="related-heading" className="max-w-7xl mx-auto px-6 md:px-12 py-12 w-full border-t border-border-subtle">
+    <section aria-labelledby="related-heading" className="max-w-[1200px] mx-auto px-4 sm:px-8 lg:px-10 py-10 w-full border-t border-border-subtle">
       <h2 id="related-heading" className="font-headline font-bold text-2xl text-on-surface mb-6">More from {product.category.name}</h2>
       <ul className="grid grid-cols-2 md:grid-cols-4 gap-5">
         {items.map((p) => (

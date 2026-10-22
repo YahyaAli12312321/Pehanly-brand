@@ -125,6 +125,10 @@ const wholesaleItemSchema = new mongoose.Schema(
       min: 0,
     },
 
+    // Set when a volume tier lowered wholesalePrice (the price above is the discounted unit price).
+    baseWholesalePrice: { type: Number, min: 0 },
+    tierDiscountPercent: { type: Number, min: 0, max: 90 },
+
     quantity: {
       type: Number,
       required: true,
@@ -281,6 +285,17 @@ const wholesaleSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
+
+    // Ready Pack presentation / commercial settings (admin managed)
+    badge: { type: String, trim: true, maxlength: 40 },
+    // Optional fixed pack price. When unset the price is calculated from live SKU wholesale prices.
+    packPrice: { type: Number, min: 0 },
+    // Optional reference (retail) value shown struck-through next to the pack price.
+    compareAtValue: { type: Number, min: 0 },
+    // Minimum number of packs per order.
+    moq: { type: Number, min: 1, validate: Number.isInteger },
+    dispatchText: { type: String, trim: true, maxlength: 160 },
+    isFeatured: { type: Boolean, default: false },
 
     sortOrder: {
       type: Number,
@@ -441,6 +456,9 @@ const wholesaleSchema = new mongoose.Schema(
         type: Number,
         min: 0,
       },
+
+      freight: { type: Number, min: 0 },
+      tax: { type: Number, min: 0 },
 
       estimatedTotal: {
         type: Number,

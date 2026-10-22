@@ -29,7 +29,7 @@ export default function Header() {
     settings?.announcement?.text ||
     [
       freeShipping?.available ? `FREE SHIPPING ON ORDERS ABOVE ${formatMoney(freeShipping.minimumOrderAmount, currency).toUpperCase()}` : null,
-      codHere ? 'CASH ON DELIVERY AVAILABLE' : null,
+      codHere ? 'COD IN KARACHI • DELIVERY ACROSS PAKISTAN' : 'DELIVERY ACROSS PAKISTAN',
     ]
       .filter(Boolean)
       .join(' • ');
@@ -62,21 +62,21 @@ export default function Header() {
   return (
     <>
       {/* 1. Top Notification & Announcement Bar */}
-      <div className="bg-primary text-white py-2 px-4 text-center text-[11px] font-semibold tracking-wider uppercase border-b border-primary-dark/40 fixed top-0 w-full z-50">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <div className="hidden sm:flex items-center gap-2 text-accent text-[11px]">
+      <div className="bg-primary text-white h-[35px] flex items-center px-4 text-center text-[11px] font-semibold tracking-wider uppercase border-b border-primary-dark/40 fixed top-0 w-full z-50 overflow-hidden whitespace-nowrap">
+        <div className="max-w-7xl mx-auto w-full flex items-center justify-between gap-4">
+          <div className="hidden xl:flex items-center gap-2 text-accent text-[11px]">
             <span className="material-symbols-outlined text-[15px]">verified</span>
             <span className="tracking-widest">OFFICIAL ATELIER STORE</span>
           </div>
-          <div className="flex-1 flex items-center justify-center gap-3">
+          <div className="flex-1 min-w-0 flex items-center justify-center gap-3 overflow-hidden">
             <span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse"></span>
-            {announcement && <span>{announcement}</span>}
+            {announcement && <span className="truncate">{announcement}</span>}
             {announcement && <span className="text-white/40 hidden md:inline">|</span>}
             <span className="font-urdu text-[13px] tracking-normal normal-case font-bold text-accent hidden md:inline">
               پہنو اپنی پہچان
             </span>
           </div>
-          <div className="hidden sm:flex items-center gap-4 text-[10px] tracking-widest text-[#B8C4BE]">
+          <div className="hidden sm:flex items-center gap-3 lg:gap-4 text-[10px] tracking-widest text-[#B8C4BE] shrink-0">
             <Link to={buildPath('wholesale')} className="hover:text-accent transition-colors uppercase">
               B2B PORTAL
             </Link>
@@ -84,16 +84,27 @@ export default function Header() {
             <Link to={buildPath('custom-manufacturing')} className="hover:text-accent transition-colors uppercase">
               MANUFACTURING
             </Link>
+            <span aria-hidden="true">•</span>
+            <Link
+              to={buildPath('account')}
+              aria-label="Account"
+              aria-current={currentRoute === 'account' ? 'page' : undefined}
+              data-testid="header-account"
+              className={`inline-flex items-center gap-1 uppercase transition-colors hover:text-accent ${currentRoute === 'account' ? 'text-accent' : ''}`}
+            >
+              <span className="material-symbols-outlined text-[14px]" aria-hidden="true">person</span>
+              ACCOUNT
+            </Link>
           </div>
         </div>
       </div>
 
       {/* 2. Global Header Navigation */}
       <header className="fixed top-[35px] w-full z-40 bg-surface/95 backdrop-blur-xl border-b border-border-subtle transition-all duration-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-8 h-20 flex items-center justify-between gap-6">
+        <div className="max-w-7xl mx-auto px-4 sm:px-8 h-20 flex items-center justify-between gap-3 sm:gap-6">
           {/* Brand Logo Emblem & Slogan */}
-          <Link to="/" aria-label="PEHANLY - home" className="flex items-center gap-3 group shrink-0">
-            <div className="relative w-12 h-12 rounded-full overflow-hidden shadow-sm border border-primary/20 bg-primary flex items-center justify-center transition-transform group-hover:scale-105">
+          <Link to="/" aria-label="PEHANLY - home" className="flex items-center gap-2 sm:gap-3 group shrink-0">
+            <div className="relative w-10 h-10 sm:w-12 sm:h-12 rounded-full overflow-hidden shadow-sm border border-primary/20 bg-primary flex items-center justify-center transition-transform group-hover:scale-105">
               <img
                 alt=""
                 width="48"
@@ -105,10 +116,10 @@ export default function Header() {
               />
             </div>
             <div className="flex flex-col">
-              <span className="font-headline font-extrabold text-2xl tracking-wider text-primary leading-none">
+              <span className="font-headline font-extrabold text-xl sm:text-2xl tracking-wider text-primary leading-none">
                 PEHANLY
               </span>
-              <div className="flex items-center gap-1.5 pt-0.5">
+              <div className="hidden sm:flex items-center gap-1.5 pt-0.5">
                 <span className="text-[9px] uppercase tracking-[0.22em] text-muted font-bold">
                   Wear Your Identity
                 </span>
@@ -117,7 +128,7 @@ export default function Header() {
           </Link>
 
           {/* Primary Navigation Links (Route-Aware Active State) */}
-          <nav aria-label="Primary" className="hidden lg:flex items-center gap-5 xl:gap-7">
+          <nav aria-label="Primary" className="hidden xl:flex items-center gap-7">
             {navLinks.map((link) => {
               const isActive = currentRoute === link.route ||
                 (link.route === 'custom-manufacturing' && currentRoute === 'manufacturing-detail') ||
@@ -140,9 +151,9 @@ export default function Header() {
           </nav>
 
           {/* Right Utility Actions */}
-          <div className="flex items-center gap-2 sm:gap-3">
+          <div className="flex items-center gap-1.5 sm:gap-3">
             {/* Currency (tablet/desktop; the mobile drawer has its own full-width selector) */}
-            <CurrencySelector variant="compact" id="currency-select-header" className="hidden sm:inline-flex" />
+            <div className="hidden sm:block"><CurrencySelector variant="compact" id="currency-select-header" /></div>
 
             {/* Search Trigger */}
             <button
@@ -150,18 +161,18 @@ export default function Header() {
               aria-label="Search Catalog"
               aria-haspopup="dialog"
               onClick={() => setIsSearchOpen(true)}
-              className="flex items-center gap-2 px-3 py-1.5 bg-surface-card border border-border-subtle hover:border-primary/40 rounded-full text-muted hover:text-primary transition-all shadow-sm cursor-pointer"
+              className="flex items-center gap-2 px-2.5 sm:px-3 py-1.5 bg-surface-card border border-border-subtle hover:border-primary/40 rounded-full text-muted hover:text-primary transition-all shadow-sm cursor-pointer"
               id="search-open-btn"
             >
               <span className="material-symbols-outlined text-[19px]">search</span>
-              <span className="text-xs font-medium pr-2 hidden md:inline">Search</span>
+              <span className="text-xs font-medium pr-2 hidden xl:inline">Search</span>
             </button>
 
             {/* Wishlist Button with Dynamic Count */}
             <Link
               aria-label={`Wishlist (${wishlistCount} items)`}
               to={buildPath('wishlist')}
-              className="relative p-2 rounded-full hover:bg-surface-container text-muted hover:text-primary transition-colors cursor-pointer"
+              className="relative p-2 rounded-full hover:bg-surface-container text-muted hover:text-primary transition-colors cursor-pointer hidden xl:inline-flex"
             >
               <span
                 className="material-symbols-outlined text-[22px]"
@@ -174,20 +185,6 @@ export default function Header() {
                 id="wishlist-badge"
               >
                 {wishlistCount}
-              </span>
-            </Link>
-
-            {/* Account / Customer Portal */}
-            <Link
-              aria-label="Account"
-              to={buildPath('account')}
-              className="flex items-center gap-1 p-2 rounded-full hover:bg-surface-container text-muted hover:text-primary transition-colors cursor-pointer"
-            >
-              <span
-                className="material-symbols-outlined text-[22px]"
-                style={currentRoute === 'account' ? { fontVariationSettings: "'FILL' 1" } : {}}
-              >
-                person
               </span>
             </Link>
 
@@ -214,7 +211,7 @@ export default function Header() {
               aria-expanded={mobileMenuOpen}
               aria-controls="mobile-nav-drawer"
               onClick={() => setMobileMenuOpen(true)}
-              className="lg:hidden p-2 text-primary hover:text-accent transition-colors cursor-pointer"
+              className="xl:hidden p-2 text-primary hover:text-accent transition-colors cursor-pointer"
               id="mobile-menu-btn"
             >
               <span className="material-symbols-outlined text-[26px]">menu</span>
@@ -268,6 +265,17 @@ export default function Header() {
                 <span className="material-symbols-outlined text-2xl">close</span>
               </button>
             </div>
+
+            <Link
+              to={buildPath('account')}
+              onClick={closeMenu}
+              data-testid="drawer-account"
+              className="flex items-center gap-3 px-4 h-12 rounded-lg bg-primary text-white text-xs font-bold uppercase tracking-widest"
+            >
+              <span className="material-symbols-outlined text-[20px]" aria-hidden="true">person</span>
+              <span className="flex-1">My Account</span>
+              <span className="material-symbols-outlined text-base" aria-hidden="true">chevron_right</span>
+            </Link>
 
             <div className="sm:hidden">
               <span className="block mb-2 text-[11px] font-semibold uppercase tracking-wider text-muted">Currency</span>

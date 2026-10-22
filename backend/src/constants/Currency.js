@@ -16,7 +16,10 @@ const CURRENCIES = Object.freeze(['PKR', 'USD']);
 const DEFAULT_CURRENCY = 'PKR';
 
 const PAYMENT_METHODS_BY_CURRENCY = Object.freeze({
-  PKR: Object.freeze(['cod']),
+  // 'jazzcash_manual' = customer pays to the store's JazzCash wallet and staff verify it (the online
+  // gateway is NOT verified/approved and is never offered). Whether a method is usable for a given
+  // address is decided by services/deliveryPolicy.service.js.
+  PKR: Object.freeze(['cod', 'jazzcash_manual']),
   USD: Object.freeze([]),
 });
 

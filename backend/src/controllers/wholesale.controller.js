@@ -19,11 +19,21 @@ async function listPacks(req, res) {
     );
 
   return response.success(res, {
-    data: result.packs,
+    data: req.user ? result.packs : result.packs.map(wholesaleService.redactPackPricing),
     meta: result.meta,
     message:
       'Wholesale packs fetched successfully',
   });
+}
+
+async function catalog(req, res) {
+  const data = await wholesaleService.listWholesaleCatalog();
+  return response.success(res, { data, message: 'Wholesale catalog fetched successfully' });
+}
+
+async function preview(req, res) {
+  const data = await wholesaleService.previewItems(req.validated.body.items, { packId: req.validated.body.packId, ordered: req.validated.body.ordered });
+  return response.success(res, { data, message: 'Wholesale preview calculated' });
 }
 
 async function getPack(req, res) {
@@ -33,7 +43,7 @@ async function getPack(req, res) {
     );
 
   return response.success(res, {
-    data: pack,
+    data: req.user ? pack : wholesaleService.redactPackPricing(pack),
     message:
       'Wholesale pack fetched successfully',
   });
@@ -56,6 +66,9 @@ async function createCustomRequest(req, res) {
 
       items:
         req.validated.body.items,
+
+      ordered:
+        req.validated.body.ordered,
 
       partnershipProposal:
         req.validated.body
@@ -315,6 +328,8 @@ async function setPackStatus(req, res) {
 }
 
 module.exports = {
+  catalog,
+  preview,
   listPacks,
   getPack,
 

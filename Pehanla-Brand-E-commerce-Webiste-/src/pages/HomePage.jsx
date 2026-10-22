@@ -93,7 +93,7 @@ function TrustStrip() {
   const { isAuthenticated } = useApp();
   const items = [
     ship?.available && { icon: 'local_shipping', text: `Free shipping over ${formatMoney(ship.minimumOrderAmount, currency)}` },
-    settings?.checkout?.codEnabled && (settings?.currencies?.paymentMethods?.[currency] ?? (currency === 'PKR' ? ['cod'] : [])).includes('cod') && { icon: 'payments', text: 'Cash on Delivery' },
+    settings?.checkout?.codEnabled && (settings?.currencies?.paymentMethods?.[currency] ?? (currency === 'PKR' ? ['cod'] : [])).includes('cod') && { icon: 'payments', text: 'Cash on Delivery in Karachi' },
     settings?.returns?.enabled && { icon: 'published_with_changes', text: `${settings.returns.windowDays}-day returns` },
     isAuthenticated && { icon: 'sell', text: 'Member coupons at checkout' },
   ].filter(Boolean);
@@ -238,31 +238,52 @@ function NewArrivals() {
 }
 
 function WholesaleSection() {
+  const { isAuthenticated } = useApp();
   const { data: packs } = useWholesalePacksQuery();
-  const { data: promos } = useBannersQuery('wholesale_promo', 1);
-  const promo = promos?.[0];
   const list = (packs?.items || []).slice(0, 3);
+  const money = (n) => formatMoney(n, 'PKR');
   return (
-    <section aria-labelledby="ws-h" className="w-full bg-surface-container py-16 border-y border-border-subtle">
-      <div className="max-w-7xl mx-auto px-4 sm:px-8 flex flex-col gap-10">
-        <div className="max-w-2xl">
-          <span className="text-xs uppercase tracking-widest font-bold text-primary">B2B Wholesale</span>
-          <h2 id="ws-h" className="font-headline font-extrabold text-3xl lg:text-4xl text-primary mt-2">{promo?.title || 'Built For Your Business.'}</h2>
-          <p className="text-sm text-muted mt-3">{promo?.subtitle || 'Ready-made packs for quick restocking, or build a custom bulk order and request a quote.'}</p>
-          <Link to="/wholesale" className={`${btnPrimary} mt-5 w-fit`}>Explore Wholesale</Link>
+    <section aria-labelledby="ws-h" className="w-full bg-surface-container py-14 lg:py-16 border-y border-border-subtle" data-testid="stock-your-business">
+      <div className="max-w-7xl mx-auto px-4 sm:px-8 flex flex-col gap-8">
+        <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6">
+          <div className="max-w-2xl min-w-0">
+            <span className="inline-block px-2.5 py-1 bg-primary text-white text-[10px] font-bold uppercase tracking-widest rounded">PEHANLY Wholesale</span>
+            <h2 id="ws-h" className="font-headline font-extrabold text-primary mt-3 text-[clamp(1.6rem,1.2rem+1.5vw,2.4rem)] leading-tight">Stock Your Business With PEHANLY</h2>
+            <p className="text-sm text-muted mt-2 leading-relaxed">Reliable bulk supply of signature streetwear cuts with clear fabric specs and transparent tiered pricing for apparel stores and fashion creators across Pakistan.</p>
+          </div>
+          <div className="flex flex-wrap gap-3 shrink-0">
+            <Link to="/wholesale#builder-section" className="h-11 px-6 bg-primary text-white text-[11px] font-bold uppercase tracking-widest rounded-lg inline-flex items-center hover:bg-primary-dark transition-colors">Explore wholesale catalog</Link>
+            <Link to="/wholesale#wholesale-cart" className="h-11 px-6 bg-white border border-primary text-primary text-[11px] font-bold uppercase tracking-widest rounded-lg inline-flex items-center hover:bg-surface-container-low transition-colors">Request a custom quote</Link>
+          </div>
         </div>
         {list.length > 0 && (
-          <ul className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {list.map((pk) => (
-              <li key={pk.id || pk._id || pk.slug} className="bg-white rounded-2xl border border-border-subtle overflow-hidden flex flex-col">
-                {pk.image?.url && <img src={pk.image.url} alt={pk.image.alt || pk.name} width="480" height="320" loading="lazy" referrerPolicy="no-referrer" className="w-full h-48 object-cover" />}
-                <div className="p-6 flex flex-col gap-2 flex-1">
-                  <h3 className="font-headline font-bold text-lg text-primary">{pk.name}</h3>
+          <ul className="grid grid-cols-1 md:grid-cols-3 gap-5">
+            {list.map((pk, i) => {
+              const c = pk.computed || {};
+              const pieces = c.totalPieces ?? (pk.items || []).reduce((n, x) => n + x.quantity, 0);
+              const colours = (c.assortment || []).map((a) => a.colorName).filter(Boolean);
+              const featured = pk.isFeatured;
+              return (
+                <li key={pk.id || pk._id || pk.slug} data-testid="stock-card" className={`relative bg-white rounded-xl border p-5 flex flex-col gap-3 shadow-sm ${featured ? 'border-primary shadow-md md:-translate-y-1' : 'border-border-subtle'}`}>
+                  {(featured || pk.badge) && <span className="absolute -top-2.5 left-4 px-2 py-0.5 bg-primary text-white text-[9px] font-bold uppercase tracking-widest rounded">{pk.badge || 'Featured'}</span>}
+                  <div className="flex items-center justify-between gap-2 text-[10px] font-bold uppercase tracking-widest text-muted">
+                    <span>Bulk pack {String(i + 1).padStart(2, '0')}</span>
+                    <span className="px-2 py-0.5 bg-accent-subtle text-primary rounded">{pieces} pcs</span>
+                  </div>
+                  <h3 className="font-headline font-bold text-base text-primary leading-snug">{pk.name}</h3>
                   {pk.description && <p className="text-xs text-muted line-clamp-3">{pk.description}</p>}
-                  <Link to="/wholesale" className="mt-auto pt-3 text-xs font-bold uppercase tracking-wider text-primary underline">View pack</Link>
-                </div>
-              </li>
-            ))}
+                  <div className="rounded-lg bg-surface-container-low px-3 py-2 flex items-center justify-between gap-2 text-xs">
+                    <span className="text-muted">Tiered rate</span>
+                    <span className="font-bold text-primary text-right" data-testid="stock-rate">{isAuthenticated && c.perPiece != null ? `${money(c.perPiece)} / piece` : 'Sign in for rates'}</span>
+                  </div>
+                  <ul className="text-[11px] text-muted flex flex-col gap-0.5 list-disc pl-4">
+                    {colours.length > 0 && <li>Available in {colours.length} {colours.length === 1 ? 'colour' : 'colours'}: {colours.slice(0, 4).join(', ')}</li>}
+                    {pk.dispatchText && <li>{pk.dispatchText}</li>}
+                  </ul>
+                  <Link to="/wholesale#ready-packs-section" className={`mt-auto h-10 rounded-lg text-[11px] font-bold uppercase tracking-widest inline-flex items-center justify-center transition-colors ${featured ? 'bg-primary text-white hover:bg-primary-dark' : 'border border-primary text-primary hover:bg-surface-container-low'}`}>View pack</Link>
+                </li>
+              );
+            })}
           </ul>
         )}
       </div>
@@ -270,27 +291,35 @@ function WholesaleSection() {
   );
 }
 
-const PROCESS = ['Tech Pack Review', 'Fabric & Dyeing', 'Prototype Sampling', 'Batch Production', 'Quality Check & Pack'];
+const PROCESS = [
+  { name: 'Tech Pack Review', text: 'We review measurements, pattern drafts and grading requirements with our pattern masters.' },
+  { name: 'Milling & Dyeing', text: 'Custom fabric sourcing, lab dips and shade approval before bulk.' },
+  { name: 'Prototype Sampling', text: 'A physical sample for fit validation and your sign-off.' },
+  { name: 'Batch Production', text: 'Precision cutting and stitching, with printing and finishing as specified.' },
+  { name: 'Strict QC & Pack', text: 'Quality inspection, custom labels and packaging, then courier handover.' },
+];
 
 function ManufacturingSection() {
   const { data: promos } = useBannersQuery('manufacturing_promo', 1);
   const promo = promos?.[0];
   return (
-    <section aria-labelledby="mf-h" className="w-full max-w-7xl mx-auto px-4 sm:px-8 py-16">
-      <div className="max-w-2xl mb-10">
-        <span className="text-xs uppercase tracking-widest font-bold text-primary">Custom Atelier</span>
-        <h2 id="mf-h" className="font-headline font-extrabold text-3xl lg:text-4xl text-on-surface mt-2">{promo?.title || 'From Your Idea To Production.'}</h2>
-        <p className="text-sm text-muted mt-3">{promo?.subtitle || 'Private-label garment manufacturing, from tech pack to finished, packed goods.'}</p>
+    <section aria-labelledby="mf-h" className="w-full max-w-7xl mx-auto px-4 sm:px-8 py-14 lg:py-16">
+      <div className="max-w-2xl mb-8">
+        <span className="flex items-center gap-2 text-[10px] uppercase tracking-widest font-bold text-muted"><span className="w-1.5 h-1.5 rounded-full bg-accent" aria-hidden="true" />PEHANLY Atelier · Production unit</span>
+        <h2 id="mf-h" className="font-headline font-extrabold text-primary text-[clamp(1.6rem,1.2rem+1.5vw,2.4rem)] mt-2 leading-tight">{promo?.title || 'Build Your Clothing Brand With Us'}</h2>
+        <p className="text-sm text-muted mt-2 leading-relaxed">{promo?.subtitle || 'From tech packs and fabric sourcing to cutting, sewing, finishing and custom packaging, we help emerging and established apparel brands with reliable manufacturing.'}</p>
       </div>
-      <ol className="grid grid-cols-2 md:grid-cols-5 gap-4">
+      <p className="text-[10px] font-bold uppercase tracking-widest text-muted mb-3">Production lifecycle</p>
+      <ol className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         {PROCESS.map((s, i) => (
-          <li key={s} className="bg-white border border-border-subtle rounded-xl p-4">
-            <span className="font-headline text-xs font-bold text-accent">0{i + 1}</span>
-            <h3 className="font-headline text-sm font-bold text-primary mt-1">{s}</h3>
+          <li key={s.name} className="bg-white border border-border-subtle rounded-xl p-4 shadow-sm">
+            <span className="font-headline text-xl font-bold text-accent">0{i + 1}</span>
+            <h3 className="font-headline text-sm font-bold text-primary mt-1">{s.name}</h3>
+            <p className="text-xs text-muted mt-1 leading-relaxed">{s.text}</p>
           </li>
         ))}
       </ol>
-      <div className="flex gap-4 mt-8">
+      <div className="flex flex-wrap gap-4 mt-8">
         <Link to="/custom-manufacturing" className={btnPrimary}>Start Manufacturing</Link>
         <Link to="/printing-branding" className="h-12 px-8 border-2 border-primary text-primary text-xs font-semibold uppercase tracking-widest flex items-center rounded-lg hover:bg-surface-container transition-colors">Printing &amp; Branding</Link>
       </div>

@@ -174,6 +174,37 @@ const detail = (p) => ({ ...dview(p), readiness: { ready: summaryOf(p._id).skuCo
   ok('partial failure is reported clearly (1 of 2 saved, names the colour)', /only 1 of 2 colour variants were saved/.test(dlg) && /Black/.test(dlg));
   ok('editor stays open, no fake success toast', (await page.getByRole('dialog').count()) === 1 && !(await page.getByText(/saved with 2 colour/).count()));
   ok('nothing auto-deleted: product + first colour remain', db.products.length === productsBefore && db.products.some((x) => x.name === 'Failing Shoe') && db.variants.filter((v) => v.variantCode === 'F-WHT').length === 1);
+
+  // ---- Per-card "Create colour variant" with the SKU left to AUTO-GENERATE from Variant Code + Size.
+  failSku.value = null;
+  await page.getByRole('dialog').getByRole('button', { name: /Close/ }).click().catch(() => {});
+  await page.waitForTimeout(300);
+  await page.goto(BASE + '/products', { waitUntil: 'networkidle' });
+  await page.getByRole('button', { name: /Add Product/ }).first().click();
+  await page.getByPlaceholder('Garment name...').fill('Auto Sku Shoe');
+  await page.getByRole('button', { name: /Next Step/ }).click();
+  await page.locator('select option[value="c1"]').first().waitFor({ state: 'attached' });
+  await page.getByRole('dialog').getByRole('combobox').selectOption('c1');
+  await page.getByRole('button', { name: /Next Step/ }).click();
+  await page.getByRole('button', { name: /Save draft/ }).click();
+  await page.waitForTimeout(300);
+  await page.getByRole('button', { name: /Add (Color|Colour)/i }).first().click();
+  await page.getByPlaceholder(/Colour name/).fill('Cream');
+  await page.getByPlaceholder('VARIANT CODE').type('lwc-cb');           // typed AFTER the default S row exists
+  await page.getByRole('button', { name: /Next Step/ }).click();         // -> Sizes & SKUs
+  const ar = page.getByRole('dialog').locator('tbody tr');
+  ok('SKU auto-filled from variant code + size (LWC-CB-S)', (await ar.first().locator('input[type=text]').nth(1).inputValue()) === 'LWC-CB-S');
+  await ar.first().locator('input[type=text]').nth(0).fill('M');         // change size -> SKU follows
+  ok('auto SKU follows size change (LWC-CB-M)', (await ar.first().locator('input[type=text]').nth(1).inputValue()) === 'LWC-CB-M');
+  await page.getByRole('dialog').getByRole('button', { name: /Add Size SKU/ }).click();
+  ok('added row gets LWC-CB-<next size>', /^LWC-CB-/.test(await ar.nth(1).locator('input[type=text]').nth(1).inputValue()));
+  for (let i = 0; i < 2; i++) { const n = ar.nth(i).locator('input[type=number]'); await n.nth(0).fill('3000'); await n.nth(5).fill('5'); }
+  const before = db.variants.length;
+  await page.getByRole('dialog').getByRole('button', { name: /Create colour variant/ }).click();
+  await page.waitForTimeout(800);
+  ok('Create colour variant sends POST /variants and saves', db.variants.length === before + 1 && db.skus.some((k) => k.sku === 'LWC-CB-M'), db.calls.slice(-2).join(' | '));
+  // Manually customised SKU must be preserved when the variant code changes.
+  await page.getByRole('button', { name: /Add Color Variant/ }).click().catch(async () => { await page.getByRole('button', { name: /Color Variants/ }).click(); await page.getByRole('button', { name: /Add Color Variant/ }).click(); });
   ok('no page errors', errs.length === 0, errs.join(' | '));
   console.log(`\n${out.filter(Boolean).length}/${out.length} passed`);
   await b.close(); process.exit(out.every(Boolean) ? 0 : 1);

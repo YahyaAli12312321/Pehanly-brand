@@ -22,6 +22,17 @@ const validate =
 */
 
 router.post(
+  '/options',
+
+  validate({
+    body:
+      validators.optionsBody,
+  }),
+
+  controller.options,
+);
+
+router.post(
   '/calculate',
 
   validate({

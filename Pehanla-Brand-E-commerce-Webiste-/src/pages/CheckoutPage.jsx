@@ -5,9 +5,10 @@ import { useAppStore } from '../store/useAppStore';
 import { useCartPricing } from '../hooks/useCartPricing';
 import {
   useAddressesQuery,
+  useCheckoutOptionsQuery,
   useCreateOrderMutation,
   useFreeShippingInfoQuery,
-  useShippingQuoteQuery,
+  usePublicSettingsQuery,
   useValidateCouponMutation,
 } from '../hooks/useQueries';
 import Seo from '../seo/Seo';
@@ -41,6 +42,9 @@ function Field({ id, label, error, children }) {
 
 function Confirmation({ order }) {
   const { isAuthenticated, navigate } = useApp();
+  const { data: settings } = usePublicSettingsQuery();
+  const wallet = settings?.checkout?.jazzcashManual;
+  const manual = order.paymentMethod === 'jazzcash_manual';
   const [copied, setCopied] = useState(false);
   const pricing = order.pricing || {};
   // The order carries its own currency snapshot; never re-derive it from the current selector.
@@ -59,7 +63,28 @@ function Confirmation({ order }) {
       <div className="bg-surface-card rounded-2xl border border-border-subtle p-8 sm:p-12 text-center flex flex-col items-center gap-4">
         <span className="material-symbols-outlined text-5xl text-primary" aria-hidden="true">check_circle</span>
         <h1 className="font-headline text-3xl font-extrabold text-primary">Thank you, your order is placed</h1>
-        <p className="text-sm text-muted max-w-md">We have received your order and will confirm it shortly. Payment is collected in cash on delivery.</p>
+        <p className="text-sm text-muted max-w-md">
+          {manual
+            ? 'We have received your order. It is confirmed once we verify your JazzCash wallet payment.'
+            : 'We have received your order and will confirm it shortly. Payment is collected in cash on delivery.'}
+        </p>
+        {manual && (
+          <div role="status" className="w-full text-left rounded-xl border border-border-subtle bg-surface-container-low p-4 text-sm">
+            <p className="font-headline font-bold text-primary">Pay by JazzCash wallet (manual payment)</p>
+            <p className="text-muted mt-1">Send <strong className="text-primary">{money(pricing.total)}</strong> to:</p>
+            {wallet?.enabled ? (
+              <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-xs">
+                <dt className="text-muted">Wallet number</dt><dd className="font-bold text-primary">{wallet.walletNumber}</dd>
+                {wallet.accountTitle && <><dt className="text-muted">Account title</dt><dd className="font-semibold text-primary">{wallet.accountTitle}</dd></>}
+                <dt className="text-muted">Reference</dt><dd className="font-semibold text-primary">{order.orderNumber}</dd>
+              </dl>
+            ) : (
+              <p className="text-xs text-muted mt-2">Our team will contact you with the wallet details for this order.</p>
+            )}
+            {wallet?.instructions && <p className="text-xs text-muted mt-2">{wallet.instructions}</p>}
+            <p className="text-[11px] text-muted mt-2">Payment status: <strong>pending verification</strong>. This is a manual wallet transfer, not the JazzCash online gateway.</p>
+          </div>
+        )}
         <div className="flex items-center gap-3 bg-surface-container-low px-5 py-3 rounded-xl">
           <span className="text-xs text-muted">Order number</span>
           <strong className="font-headline text-lg text-primary">{order.orderNumber}</strong>
@@ -113,7 +138,9 @@ export default function CheckoutPage() {
   const createOrder = useCreateOrderMutation();
   const validateCoupon = useValidateCouponMutation();
 
-  const [form, setForm] = useState({ name: '', email: '', phone: '', addressLine1: '', city: '', province: '', postalCode: '', notes: '' });
+  const [form, setForm] = useState({ name: '', email: '', phone: '', addressLine1: '', city: '', province: '', postalCode: '', country: 'Pakistan', notes: '' });
+  const [paymentChoice, setPaymentChoice] = useState('');
+  const [paymentRef, setPaymentRef] = useState('');
   const [errors, setErrors] = useState({});
   const [serverErr, setServerErr] = useState(null);
   const [coupon, setCoupon] = useState(null);
@@ -147,8 +174,16 @@ export default function CheckoutPage() {
   }, [couponCode, subtotal, currency, isAuthenticated, priceCoupon, setCouponCode, showToast]);
 
   const discount = coupon?.discountAmount || 0;
-  const quote = useShippingQuoteQuery({ subtotal: Math.max(0, Math.round((subtotal - discount) * 100) / 100), city: form.city, currency }, { enabled: form.city.trim().length >= 2 && subtotal > 0 });
-  const shipping = quote.data?.amount;
+  // One backend call answers: deliverable? what does delivery cost (ShippingRule)? which payment methods apply here?
+  const optionsQuery = useCheckoutOptionsQuery(
+    { subtotal: Math.max(0, Math.round((subtotal - discount) * 100) / 100), city: form.city, province: form.province, country: form.country, currency },
+    { enabled: form.city.trim().length >= 2 && subtotal > 0 },
+  );
+  const opts = form.city.trim().length >= 2 ? optionsQuery.data : undefined;
+  const shipping = opts?.shipping?.amount;
+  const availableMethods = opts?.payment?.methods || [];
+  const method = availableMethods.includes(paymentChoice) ? paymentChoice : availableMethods[0] || '';
+  const walletInfo = opts?.payment?.jazzcashManual;
   const total = Math.round((Math.max(0, subtotal - discount) + (shipping || 0)) * 100) / 100;
 
   const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }));
@@ -160,6 +195,7 @@ export default function CheckoutPage() {
     if (!isValidPhone(form.phone)) e.phone = 'Enter a valid phone number.';
     if (form.addressLine1.trim().length < 5) e.addressLine1 = 'Enter your full street address.';
     if (form.city.trim().length < 2) e.city = 'Enter your city.';
+    if (method === 'jazzcash_manual' && paymentRef.trim() && !/^[A-Za-z0-9._\-/ ]{4,64}$/.test(paymentRef.trim())) e.paymentRef = 'Use 4-64 letters, numbers or - . /';
     return e;
   };
 
@@ -172,6 +208,7 @@ export default function CheckoutPage() {
       document.getElementById(Object.keys(e)[0] === 'name' ? 'co-name' : `co-${Object.keys(e)[0]}`)?.focus();
       return;
     }
+    if (!canPlace) { setErrors({ city: 'Enter your delivery city so we can show the available payment options.' }); document.getElementById('co-city')?.focus(); return; }
     const body = {
       items: purchasable.map((l) => ({ sku: l.id, quantity: Math.min(l.qty, l.maxQuantity ?? l.qty) })),
       customer: { name: form.name.trim(), email: form.email.trim(), phone: form.phone.trim() },
@@ -182,9 +219,10 @@ export default function CheckoutPage() {
         city: form.city.trim(),
         ...(form.province ? { province: form.province } : {}),
         ...(form.postalCode.trim() ? { postalCode: form.postalCode.trim() } : {}),
-        country: 'Pakistan',
+        country: form.country,
       },
-      paymentMethod: 'cod',
+      paymentMethod: method,
+      ...(method === 'jazzcash_manual' && paymentRef.trim() ? { paymentReference: paymentRef.trim() } : {}),
       // PKR omits the field (original contract). USD is sent explicitly so the backend can answer authoritatively.
       ...(currency !== 'PKR' ? { currency } : {}),
       ...(isAuthenticated && couponCode ? { couponCode } : {}),
@@ -215,8 +253,9 @@ export default function CheckoutPage() {
     );
   }
 
-  const codOn = payment.methods.includes('cod');
   const blocked = isLoading || hasProblems || purchasable.length === 0;
+  const cityReady = form.city.trim().length >= 2;
+  const canPlace = Boolean(method) && opts?.deliverable === true && !opts?.shippingIssue && !optionsQuery.isFetching;
   const remaining = freeShipping?.available ? Math.max(0, freeShipping.minimumOrderAmount - subtotal) : null;
 
   return (
@@ -256,6 +295,12 @@ export default function CheckoutPage() {
               <Field id="co-addressLine1" label="Street address" error={errors.addressLine1 || serverError(serverErr, 'addressLine1')}>
                 <input id="co-addressLine1" autoComplete="address-line1" value={form.addressLine1} onChange={set('addressLine1')} aria-invalid={Boolean(errors.addressLine1)} aria-describedby="co-addressLine1-err" className={inputCls(errors.addressLine1)} />
               </Field>
+              <Field id="co-country" label="Country">
+                <select id="co-country" value={form.country} onChange={set('country')} className={inputCls(false)}>
+                  <option value="Pakistan">Pakistan</option>
+                  <option value="Other">Other country (not supported yet)</option>
+                </select>
+              </Field>
               <div className="grid sm:grid-cols-3 gap-4">
                 <Field id="co-city" label="City" error={errors.city || serverError(serverErr, 'city')}>
                   <input id="co-city" autoComplete="address-level2" value={form.city} onChange={set('city')} aria-invalid={Boolean(errors.city)} aria-describedby="co-city-err" className={inputCls(errors.city)} />
@@ -275,21 +320,70 @@ export default function CheckoutPage() {
               </Field>
             </section>
 
-            <section aria-labelledby="co-pay" className="bg-surface-card rounded-xl border border-border-subtle p-6">
-              <h2 id="co-pay" className="font-headline text-base font-bold text-primary mb-3">Payment</h2>
-              {!payment.available && !payment.isLoading ? (
+            <section aria-labelledby="co-pay" className="bg-surface-card rounded-xl border border-border-subtle p-6 flex flex-col gap-3">
+              <h2 id="co-pay" className="font-headline text-base font-bold text-primary">Payment</h2>
+              {currency !== 'PKR' && !payment.available && !payment.isLoading ? (
                 <div role="status" className="p-4 rounded-lg border border-border-subtle bg-surface-container-low text-sm text-primary leading-relaxed">
                   <p className="font-bold">Payment not available in {currency}</p>
                   <p className="text-xs text-muted mt-1">{payment.reason}</p>
-                  {currency !== 'PKR' && <button type="button" onClick={() => setCurrency('PKR')} className="mt-3 text-xs font-bold underline cursor-pointer">Switch to PKR to check out</button>}
+                  <button type="button" onClick={() => setCurrency('PKR')} className="mt-3 text-xs font-bold underline cursor-pointer">Switch to PKR to check out</button>
                 </div>
-              ) : codOn ? (
-                <label className="flex items-start gap-3 p-4 rounded-lg border border-primary bg-accent-subtle/40">
-                  <input type="radio" name="payment" checked readOnly className="mt-1 accent-[#173B32]" />
-                  <span><strong className="text-sm text-primary">Cash on Delivery</strong><span className="block text-xs text-muted">Pay in cash when your order arrives.</span></span>
-                </label>
+              ) : !cityReady ? (
+                <p className="text-sm text-muted">Enter your delivery city to see the payment options for your address.</p>
+              ) : !opts ? (
+                optionsQuery.isError
+                  ? <p role="alert" className="text-sm text-error">{optionsQuery.error?.message || 'Could not load payment options.'} <button type="button" onClick={() => optionsQuery.refetch()} className="underline font-bold cursor-pointer">Retry</button></p>
+                  : <p className="text-sm text-muted" role="status">Checking delivery and payment options…</p>
+              ) : !opts.deliverable ? (
+                <p role="alert" className="text-sm text-error font-semibold">{opts.deliveryMessage || 'We currently deliver within Pakistan only.'}</p>
               ) : (
-                <p role="alert" className="text-sm text-error">Online ordering is temporarily unavailable.</p>
+                <>
+                  <p className="text-xs text-primary font-semibold" role="status"><span className="material-symbols-outlined text-[14px] align-middle mr-1" aria-hidden="true">local_shipping</span>We deliver to {form.city.trim()}.</p>
+                  <div role="radiogroup" aria-label="Payment method" className="flex flex-col gap-3">
+                    {opts.payment.cod.available ? (
+                      <label className={`flex items-start gap-3 p-4 rounded-lg border cursor-pointer ${method === 'cod' ? 'border-primary bg-accent-subtle/40' : 'border-border-subtle'}`}>
+                        <input type="radio" name="payment" value="cod" checked={method === 'cod'} onChange={() => setPaymentChoice('cod')} className="mt-1 accent-[#173B32]" />
+                        <span><strong className="text-sm text-primary">Cash on Delivery</strong><span className="block text-xs text-muted">Pay in cash when your order arrives.</span></span>
+                      </label>
+                    ) : (
+                      <div aria-disabled="true" className="flex items-start gap-3 p-4 rounded-lg border border-border-subtle bg-surface-container-low opacity-70">
+                        <input type="radio" disabled className="mt-1" aria-label="Cash on Delivery (unavailable)" />
+                        <span><strong className="text-sm text-primary">Cash on Delivery</strong><span className="block text-xs text-muted">{opts.payment.cod.reason || 'Cash on Delivery is currently available in Karachi only.'}</span></span>
+                      </div>
+                    )}
+                    {opts.payment.jazzcashManual.available ? (
+                      <label className={`flex items-start gap-3 p-4 rounded-lg border cursor-pointer ${method === 'jazzcash_manual' ? 'border-primary bg-accent-subtle/40' : 'border-border-subtle'}`}>
+                        <input type="radio" name="payment" value="jazzcash_manual" checked={method === 'jazzcash_manual'} onChange={() => setPaymentChoice('jazzcash_manual')} className="mt-1 accent-[#173B32]" />
+                        <span>
+                          <strong className="text-sm text-primary">JazzCash Wallet / Manual Payment</strong>
+                          <span className="block text-xs text-muted">Send the total to our JazzCash wallet; your order is confirmed after we verify the payment.</span>
+                        </span>
+                      </label>
+                    ) : (
+                      <div aria-disabled="true" className="flex items-start gap-3 p-4 rounded-lg border border-border-subtle bg-surface-container-low opacity-70">
+                        <input type="radio" disabled className="mt-1" aria-label="JazzCash Wallet (unavailable)" />
+                        <span><strong className="text-sm text-primary">JazzCash Wallet / Manual Payment</strong><span className="block text-xs text-muted">{opts.payment.jazzcashManual.reason}</span></span>
+                      </div>
+                    )}
+                  </div>
+                  {method === 'jazzcash_manual' && walletInfo?.available && (
+                    <div className="rounded-lg border border-border-subtle bg-surface-container-low p-4 text-xs flex flex-col gap-2">
+                      <p className="font-bold text-primary">How to pay</p>
+                      <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1">
+                        <dt className="text-muted">JazzCash wallet</dt><dd className="font-bold text-primary">{walletInfo.walletNumber}</dd>
+                        {walletInfo.accountTitle && <><dt className="text-muted">Account title</dt><dd className="font-semibold text-primary">{walletInfo.accountTitle}</dd></>}
+                        <dt className="text-muted">Amount</dt><dd className="font-semibold text-primary">{money(total)}</dd>
+                      </dl>
+                      {walletInfo.instructions && <p className="text-muted">{walletInfo.instructions}</p>}
+                      <Field id="co-paymentRef" label="JazzCash transaction ID (optional)" error={errors.paymentRef || serverError(serverErr, 'paymentReference')}>
+                        <input id="co-paymentRef" value={paymentRef} onChange={(e) => setPaymentRef(e.target.value)} placeholder="If you have already paid" className={inputCls(errors.paymentRef)} />
+                      </Field>
+                      <p className="text-[11px] text-muted">This is a manual wallet payment, not the JazzCash online gateway. Your order stays pending until we verify it.</p>
+                    </div>
+                  )}
+                  {opts.shippingIssue && <p role="alert" className="text-sm text-error font-semibold">{opts.shippingIssue.message}</p>}
+                  {!method && !opts.shippingIssue && <p role="alert" className="text-sm text-error font-semibold">No payment method is available for this address right now. Please contact support.</p>}
+                </>
               )}
             </section>
           </div>
@@ -319,7 +413,7 @@ export default function CheckoutPage() {
               <div className="flex justify-between">
                 <dt>Shipping</dt>
                 <dd className="font-semibold text-primary">
-                  {form.city.trim().length < 2 ? 'Enter your city' : quote.isFetching ? '…' : shipping == null ? 'Calculated on order' : shipping === 0 ? 'Free' : money(shipping)}
+                  {!cityReady ? 'Enter your city' : optionsQuery.isFetching && !opts ? '…' : shipping == null ? (opts?.shippingIssue ? 'Not configured' : 'Calculated on order') : shipping === 0 ? 'Free' : money(shipping)}
                 </dd>
               </div>
               {remaining > 0 && <p className="text-[11px] text-primary bg-accent-subtle rounded p-2">Add {money(remaining)} more to unlock free shipping.</p>}
@@ -341,7 +435,7 @@ export default function CheckoutPage() {
             </div>
             <p className="text-[11px] text-muted -mt-3">Final amount is confirmed by our server when you place the order.</p>
 
-            <button type="submit" disabled={createOrder.isPending || blocked || !codOn || !payment.available} className="w-full py-3.5 bg-accent hover:bg-accent-light text-primary font-bold text-xs uppercase tracking-widest rounded shadow-md transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">
+            <button type="submit" disabled={createOrder.isPending || blocked || (cityReady && !canPlace)} className="w-full py-3.5 bg-accent hover:bg-accent-light text-primary font-bold text-xs uppercase tracking-widest rounded shadow-md transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">
               {createOrder.isPending ? 'Placing order…' : 'Place order'}
             </button>
             <Link to="/cart" className="text-center text-xs text-muted underline">Back to bag</Link>

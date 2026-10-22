@@ -68,7 +68,7 @@ test('constants: arrays AND named access work together', () => {
   assert.equal(PAYMENT_STATUSES.PAID, 'paid');
   assert.equal(PAYMENT_STATUSES.PARTIALLY_REFUNDED, 'partially_refunded');
 
-  assert.deepEqual([...PAYMENT_GATEWAYS], ['cod', 'jazzcash']);
+  assert.deepEqual([...PAYMENT_GATEWAYS], ['cod', 'jazzcash', 'jazzcash_manual']);
   assert.equal(PAYMENT_GATEWAYS.COD, 'cod');
 
   assert.equal(z.enum(ORDER_STATUSES).parse('shipped'), 'shipped');

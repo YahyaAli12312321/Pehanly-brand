@@ -379,6 +379,44 @@ exports.calculateBody = z
 
 /*
 |--------------------------------------------------------------------------
+| Public Checkout Options Body (delivery + shipping + payment methods)
+|--------------------------------------------------------------------------
+*/
+
+exports.optionsBody = z
+  .object({
+    subtotal: z.coerce
+      .number()
+      .min(0)
+      .default(0),
+
+    city: z
+      .string()
+      .trim()
+      .min(1)
+      .max(100),
+
+    province: z
+      .string()
+      .trim()
+      .max(100)
+      .optional(),
+
+    country: z
+      .string()
+      .trim()
+      .min(2)
+      .max(80)
+      .default('Pakistan'),
+
+    currency: z
+      .enum(['PKR', 'USD'])
+      .default('PKR'),
+  })
+  .strict();
+
+/*
+|--------------------------------------------------------------------------
 | Public Free-Shipping Info Query
 |--------------------------------------------------------------------------
 */

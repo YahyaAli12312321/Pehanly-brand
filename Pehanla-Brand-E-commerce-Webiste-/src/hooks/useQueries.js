@@ -163,6 +163,29 @@ export const useShippingQuoteQuery = ({ subtotal, city, currency = 'PKR', countr
     ...options,
   });
 
+/**
+ * Backend answer for one delivery address: is it deliverable, what does delivery cost (ShippingRule) and
+ * which payment methods apply (COD: Karachi only; JazzCash wallet: where the store enabled it).
+ * The order endpoint enforces the same rules again, so this is guidance, not the authority.
+ */
+export const useCheckoutOptionsQuery = ({ subtotal, city, province, country = 'Pakistan', currency = 'PKR' }, options = {}) =>
+  useQuery({
+    queryKey: ['checkout', 'options', Math.round((subtotal || 0) * 100), (city || '').trim().toLowerCase(), province || '', country, currency],
+    queryFn: () =>
+      checkoutApi.options({
+        subtotal,
+        city: city.trim(),
+        country: country || 'Pakistan',
+        ...(province ? { province } : {}),
+        ...(currency !== 'PKR' ? { currency } : {}),
+      }),
+    enabled: Boolean(city && city.trim().length >= 2) && Number.isFinite(subtotal),
+    staleTime: 30 * 1000,
+    retry: false,
+    placeholderData: (prev) => prev,
+    ...options,
+  });
+
 export const useValidateCouponMutation = () => useMutation({ mutationFn: (body) => checkoutApi.validateCoupon(body) });
 
 export function useCreateOrderMutation() {
@@ -278,6 +301,20 @@ export const useWholesalePacksQuery = () =>
 export const useWholesalePackQuery = (slug) =>
   useQuery({ queryKey: QUERY_KEYS.wholesalePack(slug), queryFn: () => wholesaleApi.pack(slug), enabled: Boolean(slug), staleTime: 5 * MIN });
 
+export const useWholesaleCatalogQuery = (enabled = true) =>
+  useQuery({ queryKey: ['wholesale', 'catalog'], queryFn: wholesaleApi.catalog, enabled, staleTime: 2 * MIN });
+
+/** Backend-authoritative price/MOQ/tier/total preview for the wholesale cart. */
+export const useWholesalePreviewQuery = (items, enabled = true) =>
+  useQuery({
+    queryKey: ['wholesale', 'preview', items],
+    queryFn: () => wholesaleApi.preview(items),
+    enabled: enabled && items.length > 0,
+    placeholderData: (prev) => prev,
+    staleTime: 0,
+    retry: false,
+  });
+
 export function useWholesaleRequestMutations() {
   const queryClient = useQueryClient();
   const invalidate = () => queryClient.invalidateQueries({ queryKey: QUERY_KEYS.wholesaleMine });
@@ -288,14 +325,14 @@ export function useWholesaleRequestMutations() {
 }
 
 export const useManufacturingCategoriesQuery = () =>
-  useQuery({ queryKey: QUERY_KEYS.mfgCategories, queryFn: () => manufacturingApi.categories(), staleTime: 10 * MIN });
+  useQuery({ queryKey: QUERY_KEYS.mfgCategories, queryFn: () => manufacturingApi.categories(), staleTime: 30 * 1000 });
 
 export const useManufacturingCategoryQuery = (slug) =>
   useQuery({
     queryKey: QUERY_KEYS.mfgCategory(slug),
     queryFn: () => manufacturingApi.category(slug),
     enabled: Boolean(slug),
-    staleTime: 10 * MIN,
+    staleTime: 30 * 1000,
     retry: (count, error) => error?.status !== 404 && count < 1,
   });
 
@@ -304,7 +341,7 @@ export const useManufacturingStylesQuery = (categoryId) =>
     queryKey: QUERY_KEYS.mfgStyles(categoryId),
     queryFn: () => manufacturingApi.styles(categoryId),
     enabled: Boolean(categoryId),
-    staleTime: 10 * MIN,
+    staleTime: 30 * 1000,
   });
 
 export const useManufacturingVariantsQuery = (styleId) =>
@@ -312,7 +349,7 @@ export const useManufacturingVariantsQuery = (styleId) =>
     queryKey: QUERY_KEYS.mfgVariants(styleId),
     queryFn: () => manufacturingApi.variants(styleId),
     enabled: Boolean(styleId),
-    staleTime: 10 * MIN,
+    staleTime: 30 * 1000,
   });
 
 export function useManufacturingRequestMutation() {

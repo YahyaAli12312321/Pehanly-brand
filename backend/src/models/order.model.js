@@ -586,6 +586,24 @@ const couponSnapshotSchema =
 const shipmentSchema =
   new mongoose.Schema(
     {
+      // 'local_rider' = Karachi bike delivery (rider name + phone); 'courier' = logistics partner + waybill.
+      deliveryMethod: {
+        type: String,
+        enum: ['local_rider', 'courier'],
+      },
+
+      riderName: {
+        type: String,
+        trim: true,
+        maxlength: 120,
+      },
+
+      riderPhone: {
+        type: String,
+        trim: true,
+        maxlength: 20,
+      },
+
       courierName: {
         type: String,
         trim: true,
@@ -752,6 +770,16 @@ const orderSchema =
           pricingSnapshotSchema,
 
         required: true,
+      },
+
+      /*
+       * How the customer pays: 'cod' (default; every order created before this field is COD)
+       * or 'jazzcash_manual' (wallet transfer verified by staff).
+       */
+      paymentMethod: {
+        type: String,
+        enum: ['cod', 'jazzcash_manual'],
+        default: 'cod',
       },
 
       paymentStatus: {

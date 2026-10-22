@@ -167,7 +167,7 @@ export const OrdersPage = () => {
   const [nextStatus, setNextStatus] = useState("");
   const [statusNote, setStatusNote] = useState("");
   const [confirmCancel, setConfirmCancel] = useState(false);
-  const [ship, setShip] = useState({ courierName: "", trackingNumber: "", trackingUrl: "" });
+  const [ship, setShip] = useState({ deliveryMethod: "", riderName: "", riderPhone: "", courierName: "", trackingNumber: "", trackingUrl: "" });
   const [shipErr, setShipErr] = useState({ fields: {}, general: "" });
   const [adminNotes, setAdminNotes] = useState("");
   const allowed = order ? ORDER_STATUS_TRANSITIONS[order.orderStatus] || [] : [];
@@ -176,7 +176,7 @@ export const OrdersPage = () => {
     if (!order) return;
     setNextStatus((ORDER_STATUS_TRANSITIONS[order.orderStatus] || [])[0] || "");
     setStatusNote("");
-    setShip({ courierName: order.shipment?.courierName || "", trackingNumber: order.shipment?.trackingNumber || "", trackingUrl: order.shipment?.trackingUrl || "" });
+    setShip({ deliveryMethod: order.shipment?.deliveryMethod || "", riderName: order.shipment?.riderName || "", riderPhone: order.shipment?.riderPhone || "", courierName: order.shipment?.courierName || "", trackingNumber: order.shipment?.trackingNumber || "", trackingUrl: order.shipment?.trackingUrl || "" });
     setShipErr({ fields: {}, general: "" });
     setAdminNotes(order.adminNotes || "");
   }, [order?._id, order?.orderStatus, order?.updatedAt]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -211,12 +211,18 @@ export const OrdersPage = () => {
     statusMutation.mutate({ id: order._id, status: nextStatus, note: statusNote });
   };
   const shipLocked = order && (order.orderStatus === "delivered" || order.orderStatus === "cancelled");
+  const isKarachi = /karachi/i.test(order?.shippingAddress?.city || "");
+  const method = ship.deliveryMethod || (isKarachi ? "local_rider" : "courier");
   const saveShipment = () => {
-    if (!ship.courierName.trim() && !ship.trackingNumber.trim() && !ship.trackingUrl.trim()) {
+    const fields = {};
+    if (method === "local_rider") {
+      if (!isKarachi) return setShipErr({ fields: {}, general: "Local rider delivery is only available for Karachi orders." });
+      if (!ship.riderName.trim() && !ship.riderPhone.trim()) return setShipErr({ fields: {}, general: "Enter the rider name and phone." });
+    } else if (!ship.courierName.trim() && !ship.trackingNumber.trim() && !ship.trackingUrl.trim()) {
       return setShipErr({ fields: {}, general: "Enter at least one shipment field." });
     }
-    setShipErr({ fields: {}, general: "" });
-    shipMutation.mutate({ id: order._id, data: ship });
+    setShipErr({ fields, general: "" });
+    shipMutation.mutate({ id: order._id, data: { ...ship, deliveryMethod: method } });
   };
 
   const timeline = useMemo(
@@ -393,13 +399,19 @@ export const OrdersPage = () => {
             </div>
 
             <div className="p-4 bg-white border border-slate-200 rounded-xl space-y-3">
-              <div className="flex items-center gap-2 text-xs font-bold text-slate-900"><Truck className="w-4 h-4 text-slate-500" />Courier Tracking &amp; Transit</div>
+              <div className="flex items-center gap-2 text-xs font-bold text-slate-900"><Truck className="w-4 h-4 text-slate-500" />Delivery &amp; Tracking</div>
               {shipErr.general && <div className="p-2.5 rounded-lg bg-rose-50 border border-rose-100 text-xs text-rose-700 font-medium" role="alert">{shipErr.general}</div>}
+              <FormField label="Delivery Method"><select disabled={!canManage || shipLocked} value={method} onChange={(e) => setShip((s) => ({ ...s, deliveryMethod: e.target.value }))} className={fld}>{isKarachi && <option value="local_rider">Local Rider / Bike (Karachi)</option>}<option value="courier">Courier</option></select></FormField>
+              {method === "local_rider" ? <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <FormField label="Rider Name" error={shipErr.fields.riderName}><input disabled={!canManage || shipLocked} type="text" maxLength={120} value={ship.riderName} onChange={(e) => setShip((s) => ({ ...s, riderName: e.target.value }))} className={fld} /></FormField>
+                <FormField label="Rider Phone" error={shipErr.fields.riderPhone}><input disabled={!canManage || shipLocked} type="tel" maxLength={20} value={ship.riderPhone} onChange={(e) => setShip((s) => ({ ...s, riderPhone: e.target.value }))} className={fld} /></FormField>
+              </div> : <>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <FormField label="Logistics Partner" error={shipErr.fields.courierName}><input disabled={!canManage || shipLocked} type="text" maxLength={120} value={ship.courierName} onChange={(e) => setShip((s) => ({ ...s, courierName: e.target.value }))} className={fld} /></FormField>
-                <FormField label="Tracking Waybill" error={shipErr.fields.trackingNumber}><input disabled={!canManage || shipLocked} type="text" maxLength={160} value={ship.trackingNumber} onChange={(e) => setShip((s) => ({ ...s, trackingNumber: e.target.value }))} className={`${fld} font-mono`} /></FormField>
+                <FormField label="Tracking Waybill / Consignment No." error={shipErr.fields.trackingNumber}><input disabled={!canManage || shipLocked} type="text" maxLength={160} value={ship.trackingNumber} onChange={(e) => setShip((s) => ({ ...s, trackingNumber: e.target.value }))} className={`${fld} font-mono`} /></FormField>
               </div>
-              <FormField label="Tracking URL" error={shipErr.fields.trackingUrl}><input disabled={!canManage || shipLocked} type="url" maxLength={500} value={ship.trackingUrl} onChange={(e) => setShip((s) => ({ ...s, trackingUrl: e.target.value }))} placeholder="https://…" className={fld} /></FormField>
+              <FormField label="Tracking URL" error={shipErr.fields.trackingUrl}><input disabled={!canManage || shipLocked} type="url" placeholder="https://…" maxLength={500} value={ship.trackingUrl} onChange={(e) => setShip((s) => ({ ...s, trackingUrl: e.target.value }))} className={fld} /></FormField>
+              </>}
               {order.shipment?.shippedAt && <div className="text-[11px] text-slate-500">Shipped {formatDateTime(order.shipment.shippedAt)}{order.shipment.deliveredAt ? ` · Delivered ${formatDateTime(order.shipment.deliveredAt)}` : ""}</div>}
               {canManage && !shipLocked && <div className="flex justify-end"><button onClick={saveShipment} disabled={shipMutation.isPending} className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#00130d] text-white text-xs font-semibold rounded-lg hover:bg-slate-800 disabled:opacity-60">{shipMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}Save shipment</button></div>}
             </div>
@@ -460,8 +472,11 @@ export const OrdersPage = () => {
               </div>
               <div>
                 <span className="font-bold text-slate-400 uppercase tracking-wider text-[10px] block">Logistics</span>
+                {order.shipment?.deliveryMethod === "local_rider" ? <>
+                <p className="font-semibold text-slate-800 mt-1">Local rider: {order.shipment?.riderName || "—"}</p>
+                <p className="text-slate-600 font-mono">Phone: {order.shipment?.riderPhone || "—"}</p></> : <>
                 <p className="font-semibold text-slate-800 mt-1">Courier: {order.shipment?.courierName || "—"}</p>
-                <p className="text-slate-600 font-mono">Waybill: {order.shipment?.trackingNumber || "—"}</p>
+                <p className="text-slate-600 font-mono">Waybill: {order.shipment?.trackingNumber || "—"}</p></>}
               </div>
             </div>
             <table className="w-full text-left text-xs border border-slate-200 rounded-lg overflow-hidden">

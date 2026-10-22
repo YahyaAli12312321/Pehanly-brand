@@ -39,7 +39,7 @@ test('currency helpers: normalise, supported list, integer-minor-unit money math
   assert.equal(c.normalizeCurrency('EUR'), null);
   assert.equal(c.sumMoney([0.1, 0.2]), 0.3); // 0.1 + 0.2 !== 0.3 in plain floats
   assert.equal(c.roundMoney(19.99 * 3), 59.97);
-  assert.deepEqual([...c.paymentMethodsFor('PKR')], ['cod']);
+  assert.deepEqual([...c.paymentMethodsFor('PKR')], ['cod', 'jazzcash_manual']);
   assert.deepEqual([...c.paymentMethodsFor('USD')], []); // no approved international provider
 });
 

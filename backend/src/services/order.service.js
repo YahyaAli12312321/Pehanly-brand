@@ -37,6 +37,8 @@ const {
 } = require('../constants/Order');
 
 const logger = require('../config/logger');
+const settingsService = require('./settings.service');
+const deliveryPolicy = require('./deliveryPolicy.service');
 
 const {
   DEFAULT_CURRENCY,
@@ -801,20 +803,82 @@ async function createRetailOrder(
     );
   }
 
+  // A currency with no payment method at all (USD today) is refused up front, before any lookup.
   if (
-    !paymentMethodsFor(
-      currency,
-    ).includes(
-      input.paymentMethod,
-    )
+    paymentMethodsFor(currency)
+      .length === 0
   ) {
     throw ApiError.conflict(
-      currency === 'USD'
-        ? 'USD checkout is not available yet: no international payment method is enabled. Please check out in PKR.'
-        : 'This payment method is not available for the selected currency',
-      currency === 'USD'
-        ? 'USD_PAYMENT_UNAVAILABLE'
-        : 'PAYMENT_METHOD_UNAVAILABLE_FOR_CURRENCY',
+      'USD checkout is not available yet: no international payment method is enabled. Please check out in PKR.',
+      'USD_PAYMENT_UNAVAILABLE',
+    );
+  }
+
+  /*
+   * Payment eligibility is decided from the DELIVERY ADDRESS + currency + store settings by the
+   * shared policy module (the same one the checkout screen uses), never from what the client chose to
+   * show: COD only for Karachi, JazzCash wallet (manual) once the store enabled it, USD none.
+   * Delivery itself is a separate question: any Pakistani address is deliverable.
+   */
+  const settings =
+    await settingsService.getSettings();
+
+  const addr =
+    input.shippingAddress || {};
+
+  const delivery =
+    deliveryPolicy.assessDelivery({
+      country: addr.country,
+      city: addr.city,
+    });
+
+  if (!delivery.deliverable) {
+    throw ApiError.badRequest(
+      delivery.reason ||
+        'We currently deliver within Pakistan only.',
+      'DELIVERY_COUNTRY_UNSUPPORTED',
+    );
+  }
+
+  const options =
+    deliveryPolicy.paymentOptions({
+      currency,
+      country: addr.country,
+      city: addr.city,
+      province: addr.province,
+      settings,
+    });
+
+  if (!options.methods.includes(input.paymentMethod)) {
+    if (currency === 'USD') {
+      throw ApiError.conflict(
+        'USD checkout is not available yet: no international payment method is enabled. Please check out in PKR.',
+        'USD_PAYMENT_UNAVAILABLE',
+      );
+    }
+
+    if (input.paymentMethod === 'cod') {
+      throw ApiError.conflict(
+        options.cod.reason ||
+          'Cash on Delivery is not available for this address',
+        'COD_NOT_AVAILABLE_FOR_LOCATION',
+      );
+    }
+
+    throw ApiError.conflict(
+      options.jazzcashManual.reason ||
+        'This payment method is not available',
+      'PAYMENT_METHOD_UNAVAILABLE',
+    );
+  }
+
+  if (
+    input.paymentReference &&
+    input.paymentMethod !== 'jazzcash_manual'
+  ) {
+    throw ApiError.badRequest(
+      'A payment reference is only used with JazzCash wallet payments',
+      'PAYMENT_REFERENCE_NOT_APPLICABLE',
     );
   }
 
@@ -994,6 +1058,9 @@ async function createRetailOrder(
 
                 pricing,
 
+                paymentMethod:
+                  input.paymentMethod,
+
                 paymentStatus:
                   'pending',
 
@@ -1063,11 +1130,23 @@ async function createRetailOrder(
         | V1 payment is COD. The payment ledger row is created in the SAME
         | transaction as the order: an order never exists without it.
         */
-        await paymentService
-          .createCodPaymentInSession(
-            order,
-            session,
-          );
+        if (
+          input.paymentMethod ===
+          'jazzcash_manual'
+        ) {
+          await paymentService
+            .createManualWalletPaymentInSession(
+              order,
+              session,
+              input.paymentReference,
+            );
+        } else {
+          await paymentService
+            .createCodPaymentInSession(
+              order,
+              session,
+            );
+        }
 
         /*
         |--------------------------------------------------------------------------
@@ -1239,6 +1318,7 @@ async function listMyOrders(
         items: 1,
         pricing: 1,
         currency: 1,
+        paymentMethod: 1,
         paymentStatus: 1,
         orderStatus: 1,
         shipment: 1,
@@ -1302,6 +1382,7 @@ async function getMyOrder(
         shippingAddress: 1,
         pricing: 1,
         currency: 1,
+        paymentMethod: 1,
         paymentStatus: 1,
         orderStatus: 1,
         coupon: 1,
@@ -1389,6 +1470,7 @@ async function trackGuestOrder({
         items: 1,
         pricing: 1,
         currency: 1,
+        paymentMethod: 1,
         paymentStatus: 1,
         orderStatus: 1,
         shipment: 1,
@@ -1469,6 +1551,9 @@ async function trackGuestOrder({
     orderStatus:
       order.orderStatus,
 
+    paymentMethod:
+      order.paymentMethod || 'cod',
+
     paymentStatus:
       order.paymentStatus,
 
@@ -1535,6 +1620,18 @@ async function trackGuestOrder({
     shipment:
       order.shipment
         ? {
+            deliveryMethod:
+              order.shipment
+                .deliveryMethod,
+
+            riderName:
+              order.shipment
+                .riderName,
+
+            riderPhone:
+              order.shipment
+                .riderPhone,
+
             courierName:
               order.shipment
                 .courierName,
@@ -1964,16 +2061,32 @@ async function updateOrderStatus({
         |--------------------------------------------------------------------------
         */
 
-        if (
-          status ===
-            ORDER_STATUSES.SHIPPED &&
-          !order.shipment
-            ?.trackingNumber
-        ) {
-          throw ApiError.conflict(
-            'Add shipment tracking information before marking the order as shipped',
-            'SHIPMENT_REQUIRED',
-          );
+        if (status === ORDER_STATUSES.SHIPPED) {
+          const assessed = deliveryPolicy.assessShipment({
+            address: order.shippingAddress,
+            shipment: order.shipment?.toObject
+              ? order.shipment.toObject()
+              : order.shipment,
+          });
+
+          if (assessed.code === 'LOCAL_RIDER_KARACHI_ONLY') {
+            throw ApiError.conflict(
+              'Local rider delivery is only available for Karachi orders. Use a courier shipment.',
+              assessed.code,
+            );
+          }
+
+          if (assessed.missing.length) {
+            throw ApiError.conflict(
+              `Add ${assessed.missing.join(' and ')} before marking the order as shipped`,
+              'SHIPMENT_REQUIRED',
+            );
+          }
+
+          if (!order.shipment) {
+            order.shipment = {};
+          }
+          order.shipment.deliveryMethod = assessed.method;
         }
 
         /*
@@ -2218,35 +2331,41 @@ async function updateShipment({
     );
   }
 
-  order.shipment = {
+  const merged = {
     ...(order.shipment?.toObject
       ? order.shipment.toObject()
       : order.shipment || {}),
-
-    ...(shipment.courierName !==
-    undefined
-      ? {
-          courierName:
-            shipment.courierName,
-        }
-      : {}),
-
-    ...(shipment.trackingNumber !==
-    undefined
-      ? {
-          trackingNumber:
-            shipment.trackingNumber,
-        }
-      : {}),
-
-    ...(shipment.trackingUrl !==
-    undefined
-      ? {
-          trackingUrl:
-            shipment.trackingUrl,
-        }
-      : {}),
   };
+  for (const key of ['deliveryMethod', 'riderName', 'riderPhone', 'courierName', 'trackingNumber', 'trackingUrl']) {
+    if (shipment[key] !== undefined) merged[key] = shipment[key];
+  }
+
+  const assessed = deliveryPolicy.assessShipment({
+    address: order.shippingAddress,
+    shipment: merged,
+  });
+
+  if (assessed.code) {
+    throw ApiError.badRequest(
+      assessed.code === 'LOCAL_RIDER_KARACHI_ONLY'
+        ? 'Local rider delivery is only available for Karachi orders. Use a courier shipment.'
+        : 'Invalid delivery method',
+      assessed.code,
+    );
+  }
+
+  // Keep only the fields that belong to the chosen method.
+  merged.deliveryMethod = assessed.method;
+  if (assessed.method === 'local_rider') {
+    delete merged.courierName;
+    delete merged.trackingNumber;
+    delete merged.trackingUrl;
+  } else {
+    delete merged.riderName;
+    delete merged.riderPhone;
+  }
+
+  order.shipment = merged;
 
   await order.save();
 

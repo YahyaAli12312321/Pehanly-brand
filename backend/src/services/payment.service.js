@@ -216,6 +216,56 @@ async function createCodPaymentInSession(order, session) {
   return payment;
 }
 
+/*
+ * Manual JazzCash wallet payment (temporary, until the online gateway is verified).
+ * The customer sends money to the store's wallet; staff verify it and confirm. Created in the SAME
+ * transaction as the order, exactly like COD. Never stores secrets: only the customer's own
+ * (unverified) wallet transaction reference, if they gave one.
+ */
+async function createManualWalletPaymentInSession(order, session, reference) {
+  if (order.currency && order.currency !== 'PKR') {
+    throw ApiError.conflict(
+      `No payment method is available for ${order.currency} orders`,
+      'PAYMENT_CURRENCY_UNSUPPORTED',
+    );
+  }
+
+  const existing = await Payment.findOne({
+    order: order._id,
+    gateway: 'jazzcash_manual',
+    status: { $in: ['pending', 'processing'] },
+  })
+    .session(session)
+    .sort({ createdAt: -1 });
+
+  if (existing) return existing;
+
+  const amount = getPayableAmount(order);
+  const paymentNumber = await generatePaymentNumber({ session });
+
+  const [payment] = await Payment.create(
+    [
+      {
+        paymentNumber,
+        order: order._id,
+        user: order.user || null,
+        gateway: 'jazzcash_manual',
+        amount,
+        gatewayFee: 0,
+        netAmount: amount,
+        currency: 'PKR',
+        status: 'pending',
+        // Customer-quoted wallet transaction id (unverified). Kept in the non-unique provider snapshot so a
+        // reused/mistyped id can never fail the order; staff compare it with the wallet statement.
+        ...(reference ? { providerResponse: { reference: String(reference).trim() } } : {}),
+      },
+    ],
+    { session },
+  );
+
+  return payment;
+}
+
 async function createCodPayment({
   orderId,
   actor = null,
@@ -281,9 +331,9 @@ async function confirmCodPayment({
         );
       }
 
-      if (payment.gateway !== 'cod') {
+      if (!['cod', 'jazzcash_manual'].includes(payment.gateway)) {
         throw ApiError.conflict(
-          'Only COD payments can be confirmed manually',
+          'Only COD and manual JazzCash wallet payments can be confirmed manually',
           'COD_CONFIRMATION_NOT_ALLOWED',
         );
       }
@@ -784,6 +834,7 @@ async function getPaymentSummary() {
 
 module.exports = {
   createCodPaymentInSession,
+  createManualWalletPaymentInSession,
   // Customer
   createCodPayment,
   getCustomerPaymentStatus,

@@ -6,6 +6,12 @@ export const wholesaleApi = {
   requestPack: (packId, body) => getData(http.post(`/wholesale/packs/${packId}/request`, body)),
   requestCustom: (body) => getData(http.post('/wholesale/requests/custom', body)),
   mine: (params) => getList(http.get('/wholesale/my', { params })),
+  catalog: () => getData(http.get('/wholesale/catalog')),
+  /** Backend-authoritative pricing. Pass SKU rows (+ the per-product ordered quantity so the backend checks the allocation) or a packId. */
+  preview: (items, { packId, ordered } = {}) => getData(http.post('/wholesale/preview', {
+    ...(packId ? { packId } : { items }),
+    ...(ordered?.length ? { ordered } : {}),
+  })),
 };
 
 export const manufacturingApi = {

@@ -119,6 +119,18 @@ exports.remove =
 |--------------------------------------------------------------------------
 */
 
+exports.options =
+  asyncHandler(
+    async (req, res) =>
+      success(res, {
+        data:
+          await service
+            .getCheckoutOptions(
+              req.validated.body,
+            ),
+      }),
+  );
+
 exports.calculate =
   asyncHandler(
     async (req, res) =>

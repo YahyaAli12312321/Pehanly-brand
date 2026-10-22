@@ -170,6 +170,11 @@ const PRESETS = {
     concrete: { currentPassword: 'Old#Pass12345', newPassword: 'New#Pass12345' },
     display: { currentPassword: '{{customerPassword}}', newPassword: 'New#Pass12345' },
   },
+  // Either explicit SKU rows (Build Your Own) or a packId (Ready Pack), never both.
+  'POST /wholesale/preview': {
+    concrete: { items: [{ sku: '64b000000000000000000001', quantity: 10 }], ordered: [{ product: '64b000000000000000000002', ordered: 10 }] },
+    display: { items: [{ sku: '{{skuId}}', quantity: 10 }], ordered: [{ product: '{{productId}}', ordered: 10 }] },
+  },
 };
 
 for (const route of routes) {

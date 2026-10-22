@@ -31,6 +31,8 @@ export const ordersApi = {
 
 export const checkoutApi = {
   shipping: (body) => getData(http.post('/shipping/calculate', body)),
+  // Delivery + shipping charge + payment methods for ONE address, all decided by the backend.
+  options: (body) => getData(http.post('/shipping/options', body)),
   // PKR sends no extra params (identical to the original request); other currencies ask the backend for THEIR rules.
   freeShippingInfo: (currency = 'PKR') =>
     getData(http.get('/shipping/free-shipping', currency && currency !== 'PKR' ? { params: { currency } } : undefined)),

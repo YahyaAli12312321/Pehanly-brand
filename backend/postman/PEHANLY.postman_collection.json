@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "PEHANLY Backend API",
-    "description": "Generated from the live router and Zod validators by scripts/generate-postman.js (201 routes). Session-cookie auth: run a request from \"00 - Login\" first. No credentials are stored in this file.",
+    "description": "Generated from the live router and Zod validators by scripts/generate-postman.js (204 routes). Session-cookie auth: run a request from \"00 - Login\" first. No credentials are stored in this file.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "item": [
@@ -3321,7 +3321,7 @@
                 "description": "**Access:** Staff or owner - permission `catalog.manage` (owner always passes)\n\n**Success status:** 201\n\n**Possible errors:** 422 VALIDATION_ERROR (body/query/params rejected; `errors[]` lists each field); 401 UNAUTHORIZED / SESSION_EXPIRED; 403 FORBIDDEN / PERMISSION_DENIED; 409 conflict (a business rule or a duplicate, e.g. insufficient stock)\n\n**Body fields:**\n- `name` (required, string)\n- `slug` (optional, string)\n- `shortDescription` (optional, string)\n- `description` (optional, string)\n- `category` (required, string)\n- `generalImages` (optional, array)\n- `isFeatured` (optional, boolean)\n- `isNewArrival` (optional, boolean)\n- `isBestSeller` (optional, boolean)\n- `wholesale` (optional, object)\n- `seo` (optional, object)",
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"name\": \"Sample Name\",\n  \"slug\": \"sample-slug\",\n  \"shortDescription\": \"Sample description text\",\n  \"description\": \"Sample description text\",\n  \"category\": \"{{categoryId}}\",\n  \"generalImages\": [\n    {\n      \"url\": \"{{mediaUrl}}\",\n      \"publicId\": \"{{publicId}}\",\n      \"alt\": \"Sample text\",\n      \"sortOrder\": 1\n    }\n  ],\n  \"isFeatured\": true,\n  \"isNewArrival\": true,\n  \"isBestSeller\": true,\n  \"wholesale\": {\n    \"isEnabled\": true,\n    \"moq\": 1\n  },\n  \"seo\": {\n    \"title\": \"Sample title\",\n    \"description\": \"Sample description text\",\n    \"socialImage\": {\n      \"url\": \"{{mediaUrl}}\",\n      \"publicId\": \"{{publicId}}\",\n      \"alt\": \"Sample text\",\n      \"sortOrder\": 1\n    },\n    \"canonicalUrl\": \"https://example.com/sample\",\n    \"index\": true\n  }\n}",
+                  "raw": "{\n  \"name\": \"Sample Name\",\n  \"category\": \"{{categoryId}}\"\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -3490,7 +3490,7 @@
                 "description": "**Access:** Staff or owner - permission `catalog.manage` (owner always passes)\n\n**Success status:** 200\n\n**Possible errors:** 422 VALIDATION_ERROR (body/query/params rejected; `errors[]` lists each field); 401 UNAUTHORIZED / SESSION_EXPIRED; 403 FORBIDDEN / PERMISSION_DENIED; 404 not found; 409 conflict (a business rule or a duplicate, e.g. insufficient stock)",
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"name\": \"Sample Name\",\n  \"slug\": \"sample-slug\",\n  \"shortDescription\": \"Sample description text\",\n  \"description\": \"Sample description text\",\n  \"category\": \"{{categoryId}}\",\n  \"generalImages\": [\n    {\n      \"url\": \"{{mediaUrl}}\",\n      \"publicId\": \"{{publicId}}\",\n      \"alt\": \"Sample text\",\n      \"sortOrder\": 1\n    }\n  ],\n  \"isFeatured\": true,\n  \"isNewArrival\": true,\n  \"isBestSeller\": true,\n  \"wholesale\": {\n    \"isEnabled\": true,\n    \"moq\": 1\n  },\n  \"seo\": {\n    \"title\": \"Sample title\",\n    \"description\": \"Sample description text\",\n    \"socialImage\": {\n      \"url\": \"{{mediaUrl}}\",\n      \"publicId\": \"{{publicId}}\",\n      \"alt\": \"Sample text\",\n      \"sortOrder\": 1\n    },\n    \"canonicalUrl\": \"https://example.com/sample\",\n    \"index\": true\n  }\n}",
+                  "raw": "{\n  \"name\": \"Sample Name\"\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -5436,7 +5436,7 @@
                 "description": "**Access:** Public. A session is optional (guest checkout allowed; a signed-in user is recognised)\n\n**Success status:** 201\n\n**Possible errors:** 422 VALIDATION_ERROR (body/query/params rejected; `errors[]` lists each field); 409 conflict (a business rule or a duplicate, e.g. insufficient stock)",
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"items\": [\n    {\n      \"sku\": \"{{skuId}}\",\n      \"quantity\": 1\n    }\n  ],\n  \"customer\": {\n    \"name\": \"Sample Name\",\n    \"email\": \"customer@example.com\",\n    \"phone\": \"03001234567\"\n  },\n  \"shippingAddress\": {\n    \"fullName\": \"Sample Name\",\n    \"phone\": \"03001234567\",\n    \"addressLine1\": \"House 1, Street 2, Block 3\",\n    \"addressLine2\": \"House 1, Street 2, Block 3\",\n    \"city\": \"Karachi\",\n    \"province\": \"Sindh\",\n    \"postalCode\": \"75500\",\n    \"country\": \"Pakistan\"\n  },\n  \"paymentMethod\": \"cod\",\n  \"currency\": \"PKR\",\n  \"couponCode\": \"SAVE10\",\n  \"customerNotes\": \"Sample note\"\n}",
+                  "raw": "{\n  \"items\": [\n    {\n      \"sku\": \"{{skuId}}\",\n      \"quantity\": 1\n    }\n  ],\n  \"customer\": {\n    \"name\": \"Sample Name\",\n    \"email\": \"customer@example.com\",\n    \"phone\": \"03001234567\"\n  },\n  \"shippingAddress\": {\n    \"fullName\": \"Sample Name\",\n    \"phone\": \"03001234567\",\n    \"addressLine1\": \"House 1, Street 2, Block 3\",\n    \"addressLine2\": \"House 1, Street 2, Block 3\",\n    \"city\": \"Karachi\",\n    \"province\": \"Sindh\",\n    \"postalCode\": \"75500\",\n    \"country\": \"Pakistan\"\n  },\n  \"paymentMethod\": \"cod\",\n  \"paymentReference\": \"Sample text\",\n  \"currency\": \"PKR\",\n  \"couponCode\": \"SAVE10\",\n  \"customerNotes\": \"Sample note\"\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -5842,7 +5842,7 @@
                 "description": "**Access:** Staff or owner - permission `orders.manage` (owner always passes)\n\n**Success status:** 200\n\n**Possible errors:** 422 VALIDATION_ERROR (body/query/params rejected; `errors[]` lists each field); 401 UNAUTHORIZED / SESSION_EXPIRED; 403 FORBIDDEN / PERMISSION_DENIED; 404 not found; 409 conflict (a business rule or a duplicate, e.g. insufficient stock)",
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"courierName\": \"Sample Name\",\n  \"trackingNumber\": \"TRK1234567890\",\n  \"trackingUrl\": \"{{mediaUrl}}\"\n}",
+                  "raw": "{\n  \"deliveryMethod\": \"local_rider\",\n  \"riderName\": \"Sample Name\",\n  \"riderPhone\": \"03001234567\",\n  \"courierName\": \"Sample Name\",\n  \"trackingNumber\": \"TRK1234567890\",\n  \"trackingUrl\": \"{{mediaUrl}}\"\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -6026,7 +6026,7 @@
                   ],
                   "variable": []
                 },
-                "description": "**Access:** Public (no session needed)\n\n**Success status:** 200\n\n**Possible errors:** 422 VALIDATION_ERROR (body/query/params rejected; `errors[]` lists each field)"
+                "description": "**Access:** Public. A session is optional (guest checkout allowed; a signed-in user is recognised)\n\n**Success status:** 200\n\n**Possible errors:** 422 VALIDATION_ERROR (body/query/params rejected; `errors[]` lists each field)"
               },
               "event": [
                 {
@@ -6102,7 +6102,7 @@
                     }
                   ]
                 },
-                "description": "**Access:** Public (no session needed)\n\n**Success status:** 200\n\n**Possible errors:** 422 VALIDATION_ERROR (body/query/params rejected; `errors[]` lists each field); 404 not found"
+                "description": "**Access:** Public. A session is optional (guest checkout allowed; a signed-in user is recognised)\n\n**Success status:** 200\n\n**Possible errors:** 422 VALIDATION_ERROR (body/query/params rejected; `errors[]` lists each field); 404 not found"
               },
               "event": [
                 {
@@ -6154,6 +6154,159 @@
               "response": []
             },
             {
+              "name": "GET /wholesale/catalog",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/wholesale/catalog",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "wholesale",
+                    "catalog"
+                  ],
+                  "query": [],
+                  "variable": []
+                },
+                "description": "**Access:** Any signed-in, active user (session cookie)\n\n**Success status:** 200\n\n**Possible errors:** 401 UNAUTHORIZED / SESSION_EXPIRED"
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "const __json = (() => { try { return pm.response.json(); } catch (e) { return null; } })();",
+                      "function __pickId(data) {",
+                      "  if (!data || typeof data !== 'object') return null;",
+                      "  if (data._id || data.id) return data._id || data.id;",
+                      "  const keys = Object.keys(data);",
+                      "  for (const k of keys) {",
+                      "    const v = data[k];",
+                      "    if (v && typeof v === 'object' && !Array.isArray(v) && (v._id || v.id)) return v._id || v.id;",
+                      "  }",
+                      "  return null;",
+                      "}",
+                      "pm.test('No server error (not 5xx)', () => pm.expect(pm.response.code).to.be.below(500));",
+                      "if (pm.response.code !== 204) {",
+                      "  pm.test('Response is JSON with the standard envelope', () => {",
+                      "    pm.expect(__json, 'JSON body').to.be.an('object');",
+                      "    pm.expect(__json.success, 'success flag').to.be.a('boolean');",
+                      "    pm.expect(__json.message, 'message').to.be.a('string');",
+                      "  });",
+                      "}",
+                      "if (pm.response.code === 200) {",
+                      "  pm.test('Success response: success=true', () => pm.expect(__json.success).to.equal(true));",
+                      "  if (__json && Array.isArray(__json.data) && __json.meta) {",
+                      "    pm.test('List response has pagination meta', () => {",
+                      "      pm.expect(__json.meta).to.be.an('object');",
+                      "      pm.expect(__json.meta.page === undefined || typeof __json.meta.page === 'number').to.equal(true);",
+                      "    });",
+                      "  }",
+                      "} else if (pm.response.code >= 400) {",
+                      "  pm.test('Error response has success=false and a code', () => {",
+                      "    pm.expect(__json.success).to.equal(false);",
+                      "    pm.expect(__json.code, 'error code').to.be.a('string');",
+                      "  });",
+                      "  if (pm.response.code === 422) {",
+                      "    pm.test('Validation error lists the failing fields', () => pm.expect(Array.isArray(__json.errors)).to.equal(true));",
+                      "  }",
+                      "  if (pm.response.code === 401) {",
+                      "    pm.test('Not signed in: run one of the Login requests first', () => pm.expect(__json.code).to.be.oneOf(['UNAUTHORIZED', 'SESSION_EXPIRED']));",
+                      "  }",
+                      "}"
+                    ]
+                  }
+                }
+              ],
+              "response": []
+            },
+            {
+              "name": "POST /wholesale/preview",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/wholesale/preview",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "wholesale",
+                    "preview"
+                  ],
+                  "query": [],
+                  "variable": []
+                },
+                "description": "**Access:** Any signed-in, active user (session cookie)\n\n**Success status:** 200\n\n**Possible errors:** 422 VALIDATION_ERROR (body/query/params rejected; `errors[]` lists each field); 401 UNAUTHORIZED / SESSION_EXPIRED; 409 conflict (a business rule or a duplicate, e.g. insufficient stock)",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"items\": [\n    {\n      \"sku\": \"{{skuId}}\",\n      \"quantity\": 10\n    }\n  ],\n  \"ordered\": [\n    {\n      \"product\": \"{{productId}}\",\n      \"ordered\": 10\n    }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "const __json = (() => { try { return pm.response.json(); } catch (e) { return null; } })();",
+                      "function __pickId(data) {",
+                      "  if (!data || typeof data !== 'object') return null;",
+                      "  if (data._id || data.id) return data._id || data.id;",
+                      "  const keys = Object.keys(data);",
+                      "  for (const k of keys) {",
+                      "    const v = data[k];",
+                      "    if (v && typeof v === 'object' && !Array.isArray(v) && (v._id || v.id)) return v._id || v.id;",
+                      "  }",
+                      "  return null;",
+                      "}",
+                      "pm.test('No server error (not 5xx)', () => pm.expect(pm.response.code).to.be.below(500));",
+                      "if (pm.response.code !== 204) {",
+                      "  pm.test('Response is JSON with the standard envelope', () => {",
+                      "    pm.expect(__json, 'JSON body').to.be.an('object');",
+                      "    pm.expect(__json.success, 'success flag').to.be.a('boolean');",
+                      "    pm.expect(__json.message, 'message').to.be.a('string');",
+                      "  });",
+                      "}",
+                      "if (pm.response.code === 200) {",
+                      "  pm.test('Success response: success=true', () => pm.expect(__json.success).to.equal(true));",
+                      "  ",
+                      "} else if (pm.response.code >= 400) {",
+                      "  pm.test('Error response has success=false and a code', () => {",
+                      "    pm.expect(__json.success).to.equal(false);",
+                      "    pm.expect(__json.code, 'error code').to.be.a('string');",
+                      "  });",
+                      "  if (pm.response.code === 422) {",
+                      "    pm.test('Validation error lists the failing fields', () => pm.expect(Array.isArray(__json.errors)).to.equal(true));",
+                      "  }",
+                      "  if (pm.response.code === 401) {",
+                      "    pm.test('Not signed in: run one of the Login requests first', () => pm.expect(__json.code).to.be.oneOf(['UNAUTHORIZED', 'SESSION_EXPIRED']));",
+                      "  }",
+                      "}"
+                    ]
+                  }
+                }
+              ],
+              "response": []
+            },
+            {
               "name": "POST /wholesale/requests/custom",
               "request": {
                 "method": "POST",
@@ -6178,10 +6331,10 @@
                   "query": [],
                   "variable": []
                 },
-                "description": "**Access:** Any signed-in, active user (session cookie)\n\n**Success status:** 201\n\n**Possible errors:** 422 VALIDATION_ERROR (body/query/params rejected; `errors[]` lists each field); 401 UNAUTHORIZED / SESSION_EXPIRED; 409 conflict (a business rule or a duplicate, e.g. insufficient stock)\n\n**Body fields:**\n- `customer` (required, object)\n- `items` (required, array)\n- `partnershipProposal` (optional, string)\n- `customerNotes` (optional, string)",
+                "description": "**Access:** Any signed-in, active user (session cookie)\n\n**Success status:** 201\n\n**Possible errors:** 422 VALIDATION_ERROR (body/query/params rejected; `errors[]` lists each field); 401 UNAUTHORIZED / SESSION_EXPIRED; 409 conflict (a business rule or a duplicate, e.g. insufficient stock)\n\n**Body fields:**\n- `customer` (required, object)\n- `items` (required, array)\n- `ordered` (optional, array)\n- `partnershipProposal` (optional, string)\n- `customerNotes` (optional, string)",
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"customer\": {\n    \"name\": \"Sample Name\",\n    \"email\": \"customer@example.com\",\n    \"phone\": \"03001234567\",\n    \"businessName\": \"Sample Name\",\n    \"businessType\": \"Sample text\",\n    \"taxNtn\": \"Sample text\"\n  },\n  \"items\": [\n    {\n      \"sku\": \"{{skuId}}\",\n      \"quantity\": 1\n    }\n  ],\n  \"partnershipProposal\": \"Sample text\",\n  \"customerNotes\": \"Sample note\"\n}",
+                  "raw": "{\n  \"customer\": {\n    \"name\": \"Sample Name\",\n    \"email\": \"customer@example.com\",\n    \"phone\": \"03001234567\",\n    \"businessName\": \"Sample Name\",\n    \"businessType\": \"Sample text\",\n    \"taxNtn\": \"Sample text\"\n  },\n  \"items\": [\n    {\n      \"sku\": \"{{skuId}}\",\n      \"quantity\": 1\n    }\n  ],\n  \"ordered\": [\n    {\n      \"product\": \"{{productId}}\",\n      \"ordered\": 1\n    }\n  ],\n  \"partnershipProposal\": \"Sample text\",\n  \"customerNotes\": \"Sample note\"\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -7050,10 +7203,10 @@
                   "query": [],
                   "variable": []
                 },
-                "description": "**Access:** Staff or owner - permission `wholesale.manage` (owner always passes)\n\n**Success status:** 201\n\n**Possible errors:** 422 VALIDATION_ERROR (body/query/params rejected; `errors[]` lists each field); 401 UNAUTHORIZED / SESSION_EXPIRED; 403 FORBIDDEN / PERMISSION_DENIED; 409 conflict (a business rule or a duplicate, e.g. insufficient stock)\n\n**Body fields:**\n- `name` (required, string)\n- `slug` (required, string)\n- `description` (optional, string)\n- `image` (optional, object)\n- `items` (required, array)\n- `isActive` (optional, boolean)\n- `sortOrder` (optional, number)",
+                "description": "**Access:** Staff or owner - permission `wholesale.manage` (owner always passes)\n\n**Success status:** 201\n\n**Possible errors:** 422 VALIDATION_ERROR (body/query/params rejected; `errors[]` lists each field); 401 UNAUTHORIZED / SESSION_EXPIRED; 403 FORBIDDEN / PERMISSION_DENIED; 409 conflict (a business rule or a duplicate, e.g. insufficient stock)\n\n**Body fields:**\n- `name` (required, string)\n- `slug` (required, string)\n- `description` (optional, string)\n- `image` (optional, object)\n- `items` (required, array)\n- `isActive` (optional, boolean)\n- `badge` (optional, string)\n- `packPrice` (optional, number)\n- `compareAtValue` (optional, number)\n- `moq` (optional, number)\n- `dispatchText` (optional, string)\n- `isFeatured` (optional, boolean)\n- `sortOrder` (optional, number)",
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"name\": \"Sample Name\",\n  \"slug\": \"sample-slug\",\n  \"description\": \"Sample description text\",\n  \"image\": {\n    \"url\": \"{{mediaUrl}}\",\n    \"publicId\": \"{{publicId}}\",\n    \"alt\": \"Sample text\"\n  },\n  \"items\": [\n    {\n      \"sku\": \"{{skuId}}\",\n      \"quantity\": 1\n    }\n  ],\n  \"isActive\": true,\n  \"sortOrder\": 1\n}",
+                  "raw": "{\n  \"name\": \"Sample Name\",\n  \"slug\": \"sample-slug\",\n  \"description\": \"Sample description text\",\n  \"image\": {\n    \"url\": \"{{mediaUrl}}\",\n    \"publicId\": \"{{publicId}}\",\n    \"alt\": \"Sample text\"\n  },\n  \"items\": [\n    {\n      \"sku\": \"{{skuId}}\",\n      \"quantity\": 1\n    }\n  ],\n  \"isActive\": true,\n  \"badge\": \"Sample text\",\n  \"packPrice\": 1,\n  \"compareAtValue\": 1,\n  \"moq\": 1,\n  \"dispatchText\": \"Sample text\",\n  \"isFeatured\": true,\n  \"sortOrder\": 1\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -7224,7 +7377,7 @@
                 "description": "**Access:** Staff or owner - permission `wholesale.manage` (owner always passes)\n\n**Success status:** 200\n\n**Possible errors:** 422 VALIDATION_ERROR (body/query/params rejected; `errors[]` lists each field); 401 UNAUTHORIZED / SESSION_EXPIRED; 403 FORBIDDEN / PERMISSION_DENIED; 404 not found; 409 conflict (a business rule or a duplicate, e.g. insufficient stock)",
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"name\": \"Sample Name\",\n  \"slug\": \"sample-slug\",\n  \"description\": \"Sample description text\",\n  \"image\": {\n    \"url\": \"{{mediaUrl}}\",\n    \"publicId\": \"{{publicId}}\",\n    \"alt\": \"Sample text\"\n  },\n  \"items\": [\n    {\n      \"sku\": \"{{skuId}}\",\n      \"quantity\": 1\n    }\n  ],\n  \"isActive\": true,\n  \"sortOrder\": 1\n}",
+                  "raw": "{\n  \"name\": \"Sample Name\",\n  \"slug\": \"sample-slug\",\n  \"description\": \"Sample description text\",\n  \"image\": {\n    \"url\": \"{{mediaUrl}}\",\n    \"publicId\": \"{{publicId}}\",\n    \"alt\": \"Sample text\"\n  },\n  \"items\": [\n    {\n      \"sku\": \"{{skuId}}\",\n      \"quantity\": 1\n    }\n  ],\n  \"isActive\": true,\n  \"badge\": \"Sample text\",\n  \"packPrice\": 1,\n  \"compareAtValue\": 1,\n  \"moq\": 1,\n  \"dispatchText\": \"Sample text\",\n  \"isFeatured\": true,\n  \"sortOrder\": 1\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -11800,7 +11953,7 @@
                       "key": "gateway",
                       "value": "cod",
                       "disabled": true,
-                      "description": "optional - enum(cod | jazzcash)"
+                      "description": "optional - enum(cod | jazzcash | jazzcash_manual)"
                     },
                     {
                       "key": "from",
@@ -15992,7 +16145,7 @@
                 "description": "**Access:** Staff or owner - permission `settings.manage` (owner always passes)\n\n**Success status:** 200\n\n**Possible errors:** 422 VALIDATION_ERROR (body/query/params rejected; `errors[]` lists each field); 401 UNAUTHORIZED / SESSION_EXPIRED; 403 FORBIDDEN / PERMISSION_DENIED; 409 conflict (a business rule or a duplicate, e.g. insufficient stock)",
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"storeName\": \"Sample Name\",\n  \"tagline\": \"Sample text\",\n  \"contact\": {\n    \"email\": \"customer@example.com\",\n    \"phone\": \"03001234567\",\n    \"whatsapp\": \"Sample text\",\n    \"address\": \"House 1, Street 2, Block 3\"\n  },\n  \"social\": {\n    \"facebook\": \"https://example.com/sample\",\n    \"instagram\": \"https://example.com/sample\",\n    \"tiktok\": \"https://example.com/sample\",\n    \"youtube\": \"https://example.com/sample\"\n  },\n  \"checkout\": {\n    \"guestCheckoutEnabled\": true,\n    \"codEnabled\": true,\n    \"jazzcashEnabled\": true\n  },\n  \"returns\": {\n    \"enabled\": true,\n    \"windowDays\": 1\n  },\n  \"announcement\": {\n    \"enabled\": true,\n    \"text\": \"Sample text\",\n    \"link\": \"/shop\"\n  }\n}",
+                  "raw": "{\n  \"storeName\": \"Sample Name\",\n  \"tagline\": \"Sample text\",\n  \"contact\": {\n    \"email\": \"customer@example.com\",\n    \"phone\": \"03001234567\",\n    \"whatsapp\": \"Sample text\",\n    \"address\": \"House 1, Street 2, Block 3\"\n  },\n  \"social\": {\n    \"facebook\": \"https://example.com/sample\",\n    \"instagram\": \"https://example.com/sample\",\n    \"tiktok\": \"https://example.com/sample\",\n    \"youtube\": \"https://example.com/sample\"\n  },\n  \"wholesale\": {\n    \"freightFlat\": 1,\n    \"taxPercent\": 1\n  },\n  \"checkout\": {\n    \"guestCheckoutEnabled\": true,\n    \"codEnabled\": true,\n    \"jazzcashEnabled\": true,\n    \"jazzcashManual\": {\n      \"enabled\": true,\n      \"accountTitle\": \"Sample title\",\n      \"walletNumber\": \"Sample text\",\n      \"instructions\": \"Sample text\"\n    }\n  },\n  \"returns\": {\n    \"enabled\": true,\n    \"windowDays\": 1\n  },\n  \"announcement\": {\n    \"enabled\": true,\n    \"text\": \"Sample text\",\n    \"link\": \"/shop\"\n  }\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -16056,6 +16209,85 @@
         {
           "name": "Storefront / Customer",
           "item": [
+            {
+              "name": "POST /shipping/options",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/shipping/options",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "shipping",
+                    "options"
+                  ],
+                  "query": [],
+                  "variable": []
+                },
+                "description": "**Access:** Public (no session needed)\n\n**Success status:** 200\n\n**Possible errors:** 422 VALIDATION_ERROR (body/query/params rejected; `errors[]` lists each field); 409 conflict (a business rule or a duplicate, e.g. insufficient stock)\n\n**Body fields:**\n- `subtotal` (optional, number)\n- `city` (required, string)\n- `province` (optional, string)\n- `country` (optional, string)\n- `currency` (optional, enum(PKR | USD))",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"subtotal\": 1,\n  \"city\": \"Karachi\",\n  \"province\": \"Sindh\",\n  \"country\": \"Pakistan\",\n  \"currency\": \"PKR\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "const __json = (() => { try { return pm.response.json(); } catch (e) { return null; } })();",
+                      "function __pickId(data) {",
+                      "  if (!data || typeof data !== 'object') return null;",
+                      "  if (data._id || data.id) return data._id || data.id;",
+                      "  const keys = Object.keys(data);",
+                      "  for (const k of keys) {",
+                      "    const v = data[k];",
+                      "    if (v && typeof v === 'object' && !Array.isArray(v) && (v._id || v.id)) return v._id || v.id;",
+                      "  }",
+                      "  return null;",
+                      "}",
+                      "pm.test('No server error (not 5xx)', () => pm.expect(pm.response.code).to.be.below(500));",
+                      "if (pm.response.code !== 204) {",
+                      "  pm.test('Response is JSON with the standard envelope', () => {",
+                      "    pm.expect(__json, 'JSON body').to.be.an('object');",
+                      "    pm.expect(__json.success, 'success flag').to.be.a('boolean');",
+                      "    pm.expect(__json.message, 'message').to.be.a('string');",
+                      "  });",
+                      "}",
+                      "if (pm.response.code === 200) {",
+                      "  pm.test('Success response: success=true', () => pm.expect(__json.success).to.equal(true));",
+                      "  ",
+                      "} else if (pm.response.code >= 400) {",
+                      "  pm.test('Error response has success=false and a code', () => {",
+                      "    pm.expect(__json.success).to.equal(false);",
+                      "    pm.expect(__json.code, 'error code').to.be.a('string');",
+                      "  });",
+                      "  if (pm.response.code === 422) {",
+                      "    pm.test('Validation error lists the failing fields', () => pm.expect(Array.isArray(__json.errors)).to.equal(true));",
+                      "  }",
+                      "  ",
+                      "}"
+                    ]
+                  }
+                }
+              ],
+              "response": []
+            },
             {
               "name": "POST /shipping/calculate",
               "request": {

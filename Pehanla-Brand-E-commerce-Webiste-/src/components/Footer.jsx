@@ -115,9 +115,10 @@ export default function Footer() {
             <span className="hidden sm:inline" aria-hidden="true">•</span>
             <span className="font-urdu text-xs text-accent hidden sm:inline">پہنو اپنی پہچان</span>
           </div>
-          {settings?.checkout?.codEnabled && (
+          {(settings?.checkout?.codEnabled || settings?.checkout?.jazzcashManual?.enabled) && (
             <ul className="flex flex-wrap items-center gap-2 text-[10px] font-semibold" aria-label="Payment methods">
-              <li className="px-2.5 py-1 bg-primary-light/50 border border-white/10 text-white rounded">Cash On Delivery</li>
+              {settings?.checkout?.codEnabled && <li className="px-2.5 py-1 bg-primary-light/50 border border-white/10 text-white rounded">Cash on Delivery (Karachi)</li>}
+              {settings?.checkout?.jazzcashManual?.enabled && <li className="px-2.5 py-1 bg-primary-light/50 border border-white/10 text-white rounded">JazzCash Wallet</li>}
             </ul>
           )}
         </div>

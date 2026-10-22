@@ -1,21 +1,25 @@
 import { usePublicSettingsQuery } from './useQueries';
 
 /**
- * Which payment methods can settle an order in a currency. The backend is the authority
- * (public settings -> currencies.paymentMethods); the fallback only mirrors today's V1 contract:
- * PKR = cash on delivery, USD = none (no approved international provider yet).
- * A USD order is NEVER silently converted to PKR, and no USD payment is ever faked.
+ * STORE-LEVEL payment availability, used where no delivery address is known yet (bag, product page).
+ * The authority for a specific address is the backend (POST /shipping/options, re-checked by POST /orders):
+ *   - Cash on Delivery ... Karachi, Sindh only (current temporary policy)
+ *   - JazzCash wallet ... anywhere in Pakistan, once the store has enabled it and set its wallet details
+ *   - USD ............... no approved payment method yet (never faked or converted)
+ * "COD unavailable" never means "delivery unavailable": delivery is Pakistan-wide.
  */
 export function usePaymentAvailability(currency) {
   const { data: settings, isLoading } = usePublicSettingsQuery();
   const fromBackend = settings?.currencies?.paymentMethods?.[currency];
-  const fallback = currency === 'PKR' ? ['cod'] : [];
-  let methods = Array.isArray(fromBackend) ? fromBackend : fallback;
-  // The store can also switch COD off in settings.
-  if (settings?.checkout && settings.checkout.codEnabled === false) methods = methods.filter((m) => m !== 'cod');
+  const currencyMethods = Array.isArray(fromBackend) ? fromBackend : currency === 'PKR' ? ['cod'] : [];
+  const codAllowed = currencyMethods.includes('cod') && settings?.checkout?.codEnabled !== false;
+  const walletOn = currencyMethods.includes('jazzcash_manual') && settings?.checkout?.jazzcashManual?.enabled === true;
+  const methods = [codAllowed && 'cod', walletOn && 'jazzcash_manual'].filter(Boolean);
   return {
     isLoading,
     methods,
+    codKarachiOnly: codAllowed,
+    wallet: walletOn ? settings.checkout.jazzcashManual : null,
     available: methods.length > 0,
     reason:
       methods.length > 0

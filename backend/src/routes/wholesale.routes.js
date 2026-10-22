@@ -1,6 +1,7 @@
 'use strict';
 
 const router = require('express').Router();
+const optionalAuth = require('../middleware/optionalAuth');
 
 const {
   authenticate,
@@ -21,6 +22,7 @@ const {
   packSlugParams,
   createCustomRequestBody,
   createPackRequestBody,
+  previewBody,
   listMyRequestsQuery,
   listPacksQuery,
 } = require(
@@ -35,6 +37,7 @@ const {
 
 router.get(
   '/packs',
+  optionalAuth,
   validate({
     query: listPacksQuery,
   }),
@@ -45,12 +48,30 @@ router.get(
 
 router.get(
   '/packs/:slug',
+  optionalAuth,
   validate({
     params: packSlugParams,
   }),
   asyncHandler(
     wholesaleController.getPack,
   ),
+);
+
+/*
+| Wholesale catalog + authoritative preview (authenticated: wholesale prices are not public)
+*/
+
+router.get(
+  '/catalog',
+  authenticate,
+  asyncHandler(wholesaleController.catalog),
+);
+
+router.post(
+  '/preview',
+  authenticate,
+  validate({ body: previewBody }),
+  asyncHandler(wholesaleController.preview),
 );
 
 /*

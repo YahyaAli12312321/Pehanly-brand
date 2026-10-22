@@ -40,3 +40,8 @@ db.inventorytransactions.find({ reason: "Initial stock", sku: { $in: ["<sku1>", 
 db.products.findOne({ _id: p._id }).stock;                                  // undefined (Product has no stock)
 ```
 Then restart backend + frontend and reload Products: values must be identical (they come from `GET /admin/products`).
+
+## Follow-up: "Create colour variant" blocked in the browser (no POST reached the backend)
+Root cause: `VariantCard.jsx` never called the SKU helpers in `variantDraft.js` (`syncSkusForVariantCode`, `syncSkuForSize`). The default size row is created with no variant code yet, so its SKU was blank and stayed blank
+when the Variant Code / Size were typed. `validateVariant` rejected the blank SKU ("SKU: letters, numbers, dots, dashes (2-40 chars)") inside `persistVariant` BEFORE `productsApi.createVariant`, so no request was sent. On the Color Variants step that per-row error was not displayed (only a toast).
+Fix (VariantCard.jsx only): Variant Code onChange -> `syncSkusForVariantCode`; Size onChange -> `syncSkuForSize`; SKU row errors are now also listed in the colour section. Hand-typed and saved SKUs are never overwritten. Backend unchanged.

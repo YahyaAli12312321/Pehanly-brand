@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, ChevronLeft, ChevronRight, Loader2, Plus } from "lucide-react";
-import { productsApi } from "../../services/productsApi";
+import { productsApi, tiersFromApi } from "../../services/productsApi";
 import { categoriesApi } from "../../services/categoriesApi";
 import { keys } from "../../lib/queryKeys";
 import { useToastStore } from "../../store/toastStore";
@@ -22,14 +22,14 @@ const slugify = (v) => v.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|
 const EMPTY = {
   name: "", slug: "", shortDescription: "", description: "", category: "", generalImages: [],
   isFeatured: false, isNewArrival: false, isBestSeller: false,
-  wholesaleEnabled: false, wholesaleMoq: 12, seoTitle: "", seoDescription: "", status: "draft",
+  wholesaleEnabled: false, wholesaleMoq: 12, wholesaleTiers: [], seoTitle: "", seoDescription: "", status: "draft",
 };
 
 const fromProduct = (p) => ({
   name: p.name || "", slug: p.slug || "", shortDescription: p.shortDescription || "", description: p.description || "",
   category: p.category?._id || p.category || "", generalImages: p.generalImages || [],
   isFeatured: !!p.isFeatured, isNewArrival: !!p.isNewArrival, isBestSeller: !!p.isBestSeller,
-  wholesaleEnabled: !!p.wholesale?.isEnabled, wholesaleMoq: p.wholesale?.moq || 12,
+  wholesaleEnabled: !!p.wholesale?.isEnabled, wholesaleMoq: p.wholesale?.moq || 12, wholesaleTiers: tiersFromApi(p.wholesale?.tiers),
   seoTitle: p.seo?.title || "", seoDescription: p.seo?.description || "", status: p.status || "draft",
 });
 
@@ -117,6 +117,13 @@ export const ProductEditor = ({ isOpen, productId, canManage, onClose }) => {
     if (!form.category) f.category = "Choose a category";
     if (form.shortDescription.length > 300) f.shortDescription = "Max 300 characters";
     if (form.wholesaleEnabled && !(Number(form.wholesaleMoq) >= 1)) f["wholesale.moq"] = "MOQ must be at least 1";
+    if (form.wholesaleEnabled) {
+      const rows = form.wholesaleTiers;
+      const bad = rows.some((r) => !(Number(r.minQuantity) >= 2) || (r.mode !== "quote" && !(Number(r.value) > 0)) || (r.mode === "discount" && Number(r.value) > 90));
+      const qs = rows.map((r) => Number(r.minQuantity));
+      if (bad) f["wholesale.tiers"] = "Each tier needs a quantity of 2+ and a price (or a discount of 1–90%).";
+      else if (new Set(qs).size !== qs.length) f["wholesale.tiers"] = "Tier quantities must be unique.";
+    }
     return f;
   };
 
@@ -149,7 +156,7 @@ export const ProductEditor = ({ isOpen, productId, canManage, onClose }) => {
     const f = validateBasics();
     if (Object.keys(f).length) {
       setFormErrors({ fields: f, general: "Please fix the highlighted fields." });
-      setStep(f.category ? 1 : f["wholesale.moq"] ? 5 : 0);
+      setStep(f.category ? 1 : (f["wholesale.moq"] || f["wholesale.tiers"]) ? 5 : 0);
       return;
     }
     // Validate every unsaved colour variant BEFORE anything is written, so a typo cannot leave a half-saved product.
@@ -388,6 +395,19 @@ export const ProductEditor = ({ isOpen, productId, canManage, onClose }) => {
             </label>
             {form.wholesaleEnabled && <FormField label="Minimum Order Quantity (MOQ)" error={fe["wholesale.moq"]}>
                 <input type="number" min={1} value={form.wholesaleMoq} onChange={(e) => set({ wholesaleMoq: e.target.value })} className="w-40 text-xs font-mono px-3 py-2 bg-white border border-emerald-200 rounded-lg focus:ring-1 focus:ring-emerald-700 outline-none" />
+              </FormField>}
+            {form.wholesaleEnabled && <FormField label="Quantity tiers" error={fe["wholesale.tiers"]} hint="Optional. Price changes automatically once the combined product quantity reaches the tier. Pick a flat price per piece, a % off the SKU wholesale price, or 'quote' for quantities that need a custom quote.">
+                <div className="space-y-2">
+                  {form.wholesaleTiers.map((t, idx) => <div key={idx} className="flex flex-wrap items-center gap-2">
+                      <input type="number" min={2} placeholder="From qty" value={t.minQuantity} onChange={(e) => set({ wholesaleTiers: form.wholesaleTiers.map((x, n) => (n === idx ? { ...x, minQuantity: e.target.value } : x)) })} className="w-24 text-xs font-mono px-2 py-2 bg-white border border-emerald-200 rounded-lg" aria-label="Tier from quantity" />
+                      <select value={t.mode} onChange={(e) => set({ wholesaleTiers: form.wholesaleTiers.map((x, n) => (n === idx ? { ...x, mode: e.target.value } : x)) })} className="text-xs px-2 py-2 bg-white border border-emerald-200 rounded-lg" aria-label="Tier pricing mode">
+                        <option value="price">Price / piece</option><option value="discount">% off SKU price</option><option value="quote">Custom quote</option>
+                      </select>
+                      {t.mode !== "quote" && <input type="number" min={0} step="any" placeholder={t.mode === "price" ? "Rs. per piece" : "% off"} value={t.value} onChange={(e) => set({ wholesaleTiers: form.wholesaleTiers.map((x, n) => (n === idx ? { ...x, value: e.target.value } : x)) })} className="w-32 text-xs font-mono px-2 py-2 bg-white border border-emerald-200 rounded-lg" aria-label="Tier value" />}
+                      <button type="button" onClick={() => set({ wholesaleTiers: form.wholesaleTiers.filter((_, n) => n !== idx) })} className="text-[11px] text-rose-600 hover:underline">Remove</button>
+                    </div>)}
+                  {form.wholesaleTiers.length < 10 && <button type="button" onClick={() => set({ wholesaleTiers: [...form.wholesaleTiers, { minQuantity: "", mode: "price", value: "" }] })} className="text-xs font-semibold text-emerald-800 hover:underline">+ Add tier</button>}
+                </div>
               </FormField>}
           </div>}
 

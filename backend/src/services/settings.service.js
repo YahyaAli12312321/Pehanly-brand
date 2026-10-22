@@ -9,7 +9,16 @@ const {
   PAYMENT_METHODS_BY_CURRENCY,
 } = require('../constants/Currency');
 
+const { manualWalletConfig } = require('./deliveryPolicy.service');
+
 const KEY = 'store';
+
+function manualWalletView(s) {
+  const w = manualWalletConfig(s);
+  return w.enabled
+    ? { enabled: true, accountTitle: w.accountTitle, walletNumber: w.walletNumber, instructions: w.instructions }
+    : { enabled: false };
+}
 
 /** Flatten { a: { b: 1 } } into { 'a.b': 1 } so a PATCH only touches the fields it sends. */
 function flatten(object, prefix = '', out = {}) {
@@ -70,6 +79,8 @@ async function buildPublicSettings() {
       guestCheckoutEnabled: s.checkout?.guestCheckoutEnabled !== false,
       codEnabled: s.checkout?.codEnabled !== false,
       jazzcashEnabled: Boolean(s.checkout?.jazzcashEnabled),
+      // Customer-facing manual wallet details, only when the store has enabled it AND entered a wallet number.
+      jazzcashManual: manualWalletView(s),
     },
     returns: {
       enabled: s.returns?.enabled !== false,

@@ -24,7 +24,7 @@ export const ordersApi = {
   /** any of courierName, trackingNumber, trackingUrl (not allowed once delivered/cancelled) */
   updateShipment: async (id, shipment) => {
     const body = {};
-    for (const k of ['courierName', 'trackingNumber', 'trackingUrl']) {
+    for (const k of ['deliveryMethod', 'riderName', 'riderPhone', 'courierName', 'trackingNumber', 'trackingUrl']) {
       const v = shipment[k]?.trim();
       if (v) body[k] = v;
     }

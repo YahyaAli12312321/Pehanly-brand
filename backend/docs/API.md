@@ -97,3 +97,12 @@ Additive and backward compatible: every existing request/response keeps working 
 - Password reset emails for non-customer accounts link to `ADMIN_PASSWORD_RESET_URL` when configured (server config only, never from the request).
 - `POST /auth/register` accepts `{ name, email, phone, password, role? }` with `role` = `customer` (default) or `admin`; `staff`, `owner` and any other value are `422`. **Only one admin may exist**: a second admin registration is `409 ADMIN_ALREADY_EXISTS` ("An admin account already exists. Additional admin registration is not allowed."), enforced by the unique partial index `unique_single_admin` (build/verify with `npm run ensure-admin-index`). Duplicate email/phone is `409 ACCOUNT_EXISTS`.
 - **Security limitation:** a role supplied by a client does not authenticate it, so this does not prevent first-admin takeover or forged requests. See `docs/AUTH-IMPLEMENTATION.md`. Staff accounts are still created by an authenticated admin.
+
+
+## Delivery, payment methods and wholesale pricing (production integration)
+
+- `POST /shipping/options` (public) `{ subtotal, city, province?, country = 'Pakistan', currency }` -> `{ deliverable, deliveryMessage, shipping, shippingIssue, payment: { methods, cod: { available, reason }, jazzcashManual: { available, accountTitle, walletNumber, instructions } } }`. Any valid Pakistani address is deliverable; COD only for Karachi (Sindh or blank province); the manual wallet is offered only when enabled in settings with a wallet number.
+- `POST /orders` accepts `paymentMethod` (`cod` | `jazzcash_manual`) and `paymentReference` (manual only). Errors: `COD_NOT_AVAILABLE_FOR_LOCATION`, `PAYMENT_METHOD_UNAVAILABLE`, `DELIVERY_COUNTRY_UNSUPPORTED`, `PAYMENT_REFERENCE_NOT_APPLICABLE`, `SHIPPING_RATE_NOT_CONFIGURED`.
+- `PATCH /admin/settings`: `checkout.jazzcashManual { enabled, accountTitle, walletNumber, instructions }` and `wholesale { freightFlat, taxPercent }`.
+- `GET /wholesale/catalog` (auth) and `POST /wholesale/preview` (auth) `{ items: [{ sku, quantity }] }` -> priced items (tier applied), per-product MOQ status, units, `pricing { subtotal, freight?, tax?, estimatedTotal, pending[] }`. `pending` lists charges the merchant has not configured (never guessed).
+- Admin product `wholesale.tiers: [{ minQuantity, discountPercent }]` (ascending, discount non-decreasing, max 10).

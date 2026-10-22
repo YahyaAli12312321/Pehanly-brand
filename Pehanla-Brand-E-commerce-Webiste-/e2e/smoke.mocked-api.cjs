@@ -10,7 +10,7 @@ const product = {
 };
 const card = { id: 'p1', name: product.name, slug: product.slug, category: product.category, image: product.image, priceMin: 2800, priceMax: 2800, priceMinUSD: 14.5, priceMaxUSD: 14.5, currencies: ['PKR', 'USD'], inStock: true, isNewArrival: true, colors: [{ name: 'Black', hexCode: '#111' }] };
 const cats = [{ id: 'c1', name: 'T-Shirts', slug: 't-shirts' }, { id: 'c2', name: 'Hoodies', slug: 'hoodies' }];
-let registered = false; let lastOrderBody = null; let couponCalls = 0;
+let registered = false; let lastOrderBody = null; let couponCalls = 0; const optionsCalls = [];
 (async () => {
   const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome' }).catch(() => chromium.launch());
   const ctx = await b.newContext({ timezoneId: 'Asia/Karachi', locale: 'en-PK' });
@@ -33,9 +33,18 @@ let registered = false; let lastOrderBody = null; let couponCalls = 0;
     if (p.includes('/reviews/summary') || p.endsWith('/summary')) return j({ averageRating: 0, reviewCount: 0, distribution: {} });
     if (p.includes('/reviews')) return j([], { meta: { page: 1, limit: 6, total: 0, totalPages: 1 } });
     if (p === '/banners') return j([]);
-    if (p === '/settings/public') return j({ checkout: { codEnabled: true }, returns: { enabled: true, windowDays: 7 }, store: { name: 'PEHAN LY' }, contact: {}, currencies: { base: 'PKR', supported: ['PKR', 'USD'], paymentMethods: { PKR: ['cod'], USD: [] } } });
+    if (p === '/settings/public') return j({ checkout: { codEnabled: true, jazzcashManual: { enabled: true, accountTitle: 'PEHANLY Store', walletNumber: '03001112223', instructions: 'Send the exact total and keep the receipt.' } }, returns: { enabled: true, windowDays: 7 }, store: { name: 'PEHAN LY' }, contact: {}, currencies: { base: 'PKR', supported: ['PKR', 'USD'], paymentMethods: { PKR: ['cod', 'jazzcash_manual'], USD: [] } } });
     if (p === '/shipping/free-shipping' && u.searchParams.get('currency') === 'USD') return j({ available: true, country: null, currency: 'USD', minimumOrderAmount: 75, ruleName: 'Free over $75' });
     if (p === '/shipping/free-shipping') return j({ available: true, country: 'Pakistan', minimumOrderAmount: 5000, ruleName: 'Free over 5000' });
+    if (p === '/shipping/options' && m === 'POST') {
+      // Fixture mirroring backend deliveryPolicy: Pakistan deliverable; COD Karachi/Sindh only; wallet enabled in settings above.
+      const b = JSON.parse(req.postData()); optionsCalls.push(b);
+      const pk = !b.country || /^pakistan$/i.test(b.country); const khi = pk && /^karachi/i.test(b.city) && (!b.province || /^sind/i.test(b.province));
+      const usd = b.currency === 'USD';
+      const cod = { available: !usd && pk && khi, reason: khi ? null : 'Cash on Delivery is currently available in Karachi only.' };
+      const wal = { available: !usd && pk, reason: pk ? null : 'We currently deliver within Pakistan only.', ...(!usd && pk ? { accountTitle: 'PEHANLY Store', walletNumber: '03001112223', instructions: 'Send the exact total and keep the receipt.' } : {}) };
+      return j({ deliverable: pk, deliveryMessage: pk ? null : 'We currently deliver within Pakistan only.', country: b.country || 'Pakistan', city: b.city, shipping: pk ? { amount: b.subtotal >= 5000 ? 0 : 250, reason: 'flat_rate' } : null, shippingIssue: null, payment: { methods: [cod.available && 'cod', wal.available && 'jazzcash_manual'].filter(Boolean), cod, jazzcashManual: wal } });
+    }
     if (p === '/shipping/quote' || p.startsWith('/shipping')) return j({ amount: Number(u.searchParams.get('subtotal')) >= 5000 ? 0 : 250 });
     if (p === '/coupons/validate') { couponCalls++; return j({ code: 'SAVE10', discountAmount: 280, discountType: 'percentage', discountValue: 10 }); }
     if (p === '/orders' && m === 'POST') { lastOrderBody = JSON.parse(req.postData()); return j({ orderNumber: 'PHN-0001', pricing: { subtotal: 2800, discount: 0, shipping: 250, total: 3050 }, items: [{ productName: 'Heavy Tee', colorName: 'Black', size: 'M', quantity: 1, lineTotal: 2800 }] }, {}, 201); }
@@ -92,13 +101,19 @@ let registered = false; let lastOrderBody = null; let couponCalls = 0;
   await page.getByLabel('Phone').fill('03001234567');
   await page.getByLabel('Street address').fill('House 1, Street 2');
   await page.getByLabel('City').fill('Lahore');
-  await page.waitForTimeout(500);
+  await page.getByText('We deliver to Lahore.').waitFor();
+  check('Lahore: delivery available', await page.getByText('We deliver to Lahore.').isVisible());
+  check('Lahore: COD shown disabled with the Karachi-only reason', await page.getByText('Cash on Delivery is currently available in Karachi only.').isVisible() && (await page.getByRole('radio', { name: 'Cash on Delivery (unavailable)' }).isDisabled()));
+  check('Lahore: JazzCash wallet / manual payment selectable and preselected', await page.getByRole('radio', { name: /JazzCash Wallet \/ Manual Payment/ }).isChecked());
+  check('Lahore: wallet details come from settings (not hardcoded)', await page.getByText('03001112223').first().isVisible());
+  check('checkout stays possible outside Karachi', await page.getByRole('button', { name: 'Place order' }).isEnabled());
+  await page.getByLabel('JazzCash transaction ID (optional)').fill('T250611123456');
   await page.getByRole('button', { name: 'Place order' }).click();
   await page.waitForURL('**/order-confirmation');
   await page.getByText('PHN-0001').first().waitFor({ timeout: 5000 }).catch(() => {});
+  check('guest Lahore order sends jazzcash_manual + reference', lastOrderBody?.paymentMethod === 'jazzcash_manual' && lastOrderBody?.paymentReference === 'T250611123456' && lastOrderBody?.shippingAddress?.country === 'Pakistan', JSON.stringify([lastOrderBody?.paymentMethod, lastOrderBody?.paymentReference]));
   check('order confirmation shows backend order number', await page.getByText('PHN-0001').first().isVisible());
   check('order body has only sku+quantity items, no prices/totals', lastOrderBody && Object.keys(lastOrderBody.items[0]).sort().join() === 'quantity,sku' && !('total' in lastOrderBody) && !('pricing' in lastOrderBody) && !('couponCode' in lastOrderBody), JSON.stringify(lastOrderBody));
-  check('payment method is cod', lastOrderBody?.paymentMethod === 'cod');
   await page.goto(BASE + '/cart', { waitUntil: 'networkidle' });
   check('cart cleared after order', await page.getByText('Your Bag is Empty').isVisible());
   await open('/order-confirmation'); check('confirmation without state redirects to tracking', page.url().endsWith('/track-order'));
@@ -117,9 +132,26 @@ let registered = false; let lastOrderBody = null; let couponCalls = 0;
   await page.getByRole('button', { name: /Proceed to Checkout/ }).click(); await page.waitForURL('**/checkout');
   check('checkout prefilled from profile', (await page.getByLabel('Email').inputValue()) === 'a@x.pk');
   await page.getByLabel('Street address').fill('House 9, Street 3'); await page.getByLabel('City').fill('Karachi'); await page.waitForTimeout(400);
+  await page.getByText('We deliver to Karachi.').waitFor();
+  check('Karachi: COD and JazzCash manual both offered', await page.locator('input[name=payment][value=cod]').isEnabled() && await page.getByRole('radio', { name: /JazzCash Wallet \/ Manual Payment/ }).isEnabled());
+  check('Karachi: COD preselected', await page.locator('input[name=payment][value=cod]').isChecked());
   await page.getByRole('button', { name: 'Place order' }).click(); await page.waitForURL('**/order-confirmation');
+  check('Karachi order is COD', lastOrderBody?.paymentMethod === 'cod' && !('paymentReference' in lastOrderBody));
   check('coupon code sent to backend for registered customer only', lastOrderBody?.couponCode === 'SAVE10', JSON.stringify(lastOrderBody?.couponCode));
 
+
+  // ---- Flow G: a non-Pakistan address is NOT treated as Pakistan-wide ----
+  const ordersBefore = lastOrderBody;
+  await open('/product/heavy-tee'); await page.getByRole('radio', { name: 'Size M' }).click(); await page.getByRole('button', { name: 'Add To Cart' }).click();
+  await page.goto(BASE + '/checkout', { waitUntil: 'networkidle' });
+  await page.getByLabel('Street address').fill('1 High Street'); await page.getByLabel('City').fill('London');
+  await page.getByLabel('Country').selectOption('Other'); await page.waitForTimeout(500);
+  check('G: non-Pakistan address is not deliverable (backend message shown)', await page.getByText('We currently deliver within Pakistan only.').first().isVisible());
+  check('G: no payment method is offered for a non-Pakistan address', (await page.locator('input[name=payment]:enabled').count()) === 0);
+  check('G: order cannot be placed', await page.getByRole('button', { name: 'Place order' }).isDisabled());
+  check('G: no order request was sent', lastOrderBody === ordersBefore);
+  await page.getByLabel('Country').selectOption('Pakistan'); await page.getByLabel('City').fill('Quetta'); await page.waitForTimeout(500);
+  check('G: switching back to Pakistan restores delivery (Quetta: wallet, no COD)', await page.getByText('We deliver to Quetta.').isVisible() && await page.getByRole('button', { name: 'Place order' }).isEnabled());
 
   // ---- Multi-currency ----
   const urls = []; page.on('request', (rq) => { if (/\/api\/v1\//.test(rq.url())) urls.push(rq.url()); });
@@ -149,6 +181,22 @@ let registered = false; let lastOrderBody = null; let couponCalls = 0;
   check('shop card shows PKR after switching back', await page.getByText('Rs. 2,800').first().isVisible());
   check('canonical stays clean after currency change', !/currency/.test((await info()).canonical));
   check('PDP JSON-LD offers both real currencies regardless of selection', await (async () => { await open('/product/heavy-tee'); return page.evaluate(() => { const t = [...document.querySelectorAll('script[type="application/ld+json"]')].map((x) => x.textContent).join(''); return t.includes('"PKR"') && t.includes('"USD"') && !t.includes('aggregateRating'); }); })());
+  // PDP responsive sweep (C): gallery/title/price proportions, no overflow, no giant image or type
+  for (const [w, h] of [[1920, 1080], [1440, 900], [1366, 768], [1280, 720], [1024, 768], [768, 1024], [390, 844]]) {
+    await page.setViewportSize({ width: w, height: h });
+    await open('/product/heavy-tee');
+    const m = await page.evaluate(() => {
+      const main = document.querySelector('main img') || document.querySelector('img');
+      const imgs = [...document.querySelectorAll('img')].map((i) => i.getBoundingClientRect()).sort((a, b) => b.width * b.height - a.width * a.height)[0] || { height: 0, width: 0 };
+      const h1 = document.querySelector('h1');
+      return { ox: document.documentElement.scrollWidth - document.documentElement.clientWidth, imgH: imgs.height, imgW: imgs.width, h1: h1 ? parseFloat(getComputedStyle(h1).fontSize) : 0, h1R: h1 ? h1.getBoundingClientRect().right : 0, vw: window.innerWidth };
+    });
+    check(`PDP ${w}: no horizontal overflow`, m.ox <= 1, `(${m.ox}px)`);
+    check(`PDP ${w}: main image fits the viewport height (${Math.round(m.imgH)}px of ${h}px)`, m.imgH <= h * 0.85 + 1 && m.imgW <= (w < 1024 ? w : 640), `(${Math.round(m.imgW)}x${Math.round(m.imgH)})`);
+    check(`PDP ${w}: title size is sane (${m.h1.toFixed(1)}px)`, m.h1 <= 30 && m.h1R <= m.vw);
+    await page.screenshot({ path: `shots/pdp-${w}.png` });
+  }
+  await page.setViewportSize({ width: 1440, height: 900 });
   // International visitor: initial USD from detection, bots stay PKR
   const intl = await b.newContext({ timezoneId: 'America/New_York', locale: 'en-US', userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36' });
   const p2 = await intl.newPage();

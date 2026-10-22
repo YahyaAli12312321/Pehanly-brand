@@ -104,6 +104,29 @@ const customWholesaleItemSchema = z
   })
   .strict();
 
+/*
+ * Size/colour allocation contract: for each product the customer declares how many pieces they ordered;
+ * the backend rejects (create) / reports (preview) any product whose SKU rows do not add up to it.
+ */
+const orderedQuantitySchema = z
+  .object({
+    product: objectId,
+    ordered: z.coerce.number().int().min(1).max(1_000_000),
+  })
+  .strict();
+
+const previewBody = z
+  .object({
+    items: z.array(customWholesaleItemSchema).max(100).optional(),
+    packId: objectId.optional(),
+    ordered: z.array(orderedQuantitySchema).max(100).optional(),
+  })
+  .strict()
+  .refine((b) => (b.packId ? !b.items?.length : b.items?.length > 0), {
+    message: 'Provide either items or a packId',
+    path: ['items'],
+  });
+
 const createCustomRequestBody = z
   .object({
     customer: customerSchema,
@@ -112,6 +135,8 @@ const createCustomRequestBody = z
       .array(customWholesaleItemSchema)
       .min(1)
       .max(100),
+
+    ordered: z.array(orderedQuantitySchema).max(100).optional(),
 
     partnershipProposal: z
       .string()
@@ -221,6 +246,13 @@ const createPackBody = z
     isActive: z
       .boolean()
       .default(true),
+
+    badge: z.string().trim().max(40).optional(),
+    packPrice: z.number().positive().max(100_000_000).nullable().optional(),
+    compareAtValue: z.number().positive().max(100_000_000).nullable().optional(),
+    moq: z.number().int().min(1).max(100000).nullable().optional(),
+    dispatchText: z.string().trim().max(160).optional(),
+    isFeatured: z.boolean().default(false),
 
     sortOrder: z.coerce
       .number()
@@ -428,6 +460,7 @@ module.exports = {
   packStatusBody,
   createCustomRequestBody,
   createPackRequestBody,
+  previewBody,
 
   createPackBody,
   updatePackBody,

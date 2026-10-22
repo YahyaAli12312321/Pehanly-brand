@@ -109,7 +109,7 @@ export default function ShopPage() {
   const metaTitle = q ? `Search: ${q}` : activeCategory?.name ? `${activeCategory.name}${page > 1 ? ` - Page ${page}` : ''}` : `Shop Clothing${page > 1 ? ` - Page ${page}` : ''}`;
   const metaDescription =
     activeCategory?.description ||
-    (activeCategory ? `Shop ${activeCategory.name} from PEHAN LY. Contemporary Pakistani clothing with cash on delivery.` : 'Shop contemporary Pakistani clothing from PEHAN LY: hoodies, t-shirts, trousers and more.');
+    (activeCategory ? `Shop ${activeCategory.name} from PEHAN LY. Contemporary Pakistani clothing delivered across Pakistan.` : 'Shop contemporary Pakistani clothing from PEHAN LY: hoodies, t-shirts, trousers and more.');
   const crumbs = [
     { name: 'Home', path: '/' },
     { name: 'Shop', path: '/shop' },

@@ -1,5 +1,20 @@
 import { get, post, patch, cleanParams } from '../lib/apiClient';
 
+/** Editor rows {minQuantity, mode: discount|price|quote, value} -> backend tiers (price / % per tier, or quote-only). */
+export const tiersToApi = (rows = []) => rows
+  .filter((r) => Number(r.minQuantity) >= 2)
+  .map((r) => ({
+    minQuantity: Math.round(Number(r.minQuantity)),
+    ...(r.mode === 'quote' ? { quoteOnly: true } : r.mode === 'price' ? { unitPrice: Number(r.value) } : { discountPercent: Number(r.value) }),
+  }))
+  .sort((a, b) => a.minQuantity - b.minQuantity);
+export const tiersFromApi = (tiers = []) => tiers.map((t) => ({
+  minQuantity: String(t.minQuantity),
+  mode: t.quoteOnly ? 'quote' : t.unitPrice ? 'price' : 'discount',
+  value: t.quoteOnly ? '' : String(t.unitPrice ?? t.discountPercent ?? ''),
+}));
+
+
 /**
  * Products / variants / SKUs (admin). Backend: /admin/products — catalog.read (GET) / catalog.manage (writes).
  * No delete or duplicate endpoint exists. New products are always created as `draft`; publishing
@@ -42,7 +57,7 @@ function productBody(f) {
     isFeatured: !!f.isFeatured,
     isNewArrival: !!f.isNewArrival,
     isBestSeller: !!f.isBestSeller,
-    wholesale: f.wholesaleEnabled ? { isEnabled: true, moq: Math.max(1, Math.round(Number(f.wholesaleMoq) || 1)) } : { isEnabled: false },
+    wholesale: f.wholesaleEnabled ? { isEnabled: true, moq: Math.max(1, Math.round(Number(f.wholesaleMoq) || 1)), tiers: tiersToApi(f.wholesaleTiers) } : { isEnabled: false },
     seo: { title: (f.seoTitle || '').trim(), description: (f.seoDescription || '').trim() },
   };
   if (f.slug && f.slug.trim()) body.slug = f.slug.trim().toLowerCase();
