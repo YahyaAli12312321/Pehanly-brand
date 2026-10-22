@@ -1,0 +1,6 @@
+{
+  "name": "PEHANLY — Wear Your Identity",
+  "description": "Contemporary Pakistani fashion engineering, retail, B2B wholesale, and custom clothing manufacturing atelier.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -1,0 +1,5 @@
+// Placeholder brand imagery carried over from the approved design. These are
+// hotlinked design-tool assets: replace with files hosted on your own CDN/media
+// library before launch (see implementation report).
+export const HERO_FALLBACK_IMAGE = 'https://lh3.googleusercontent.com/aida-public/AB6AXuCNFSWWgStrtwzzYPL2LI-_3gfEpsORMPF-tK8KN8ITAbzwN_hQPF39eyCtAjhz2U1hlFBgHqqEqFACpsGtyXwZq-n1yuZhetebPd_WwnBqUrfkKs-KcBiAPXWWBPUhH_LY4bXWcO69GoTQi0ca59twG9uteJpGw9TD785uCCz4PG9ciy5xuoJjYEkkaEjNjW9ensTdQC5lUbHb1k5in_5_cPO3shdFGNDtDeMzuRbdjYTbn3JaisO9';
+export const RETAIL_LOOKBOOK_IMAGE = 'https://lh3.googleusercontent.com/aida-public/AB6AXuCKAwyWQgygoIS1dbMo9SGWvMGuD0WNmdIN2xQ5TZW3-oxA-eGrQEbJcrOvDqUTkP23tvALNSbo5frBae1EyIurEfx-gpbTWkE9btCcwv2J16L0CzReR-2K6KMKbv4f53Argr50RlSQNMBVZRUaTk1LV9c-yGraNALT2Ifspn1xsYt1sGdD7ghbjo-p8S64YhUJURBxsMbBCZ9KXzMGg3uG6Jp-aLcs9tuLcPr5MfAMi4MZXPJ_yKfN';

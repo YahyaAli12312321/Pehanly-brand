@@ -1,0 +1,45 @@
+{
+  "name": "pehanly-backend",
+  "version": "1.0.0-rc.2",
+  "private": true,
+  "description": "PEHAN LY API - Wear Your Identity",
+  "main": "server.js",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "test": "node --require ./test/setup-env.js --test --test-concurrency=1 test/*.test.js",
+    "create-admin": "node scripts/create-admin.js",
+    "ensure-admin-index": "node scripts/ensure-admin-index.js",
+    "test:integration": "node --require ./test/setup-env.js --test --test-concurrency=1 test/integration/*.int.test.js",
+    "sync-indexes": "node scripts/sync-indexes.js",
+    "reconcile-stock": "node scripts/reconcile-stock.js",
+    "worker": "node scripts/worker.js",
+    "worker:once": "node scripts/worker.js --once",
+    "postman": "node scripts/generate-postman.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "bullmq": "^5.81.5",
+    "cloudinary": "^2.11.0",
+    "compression": "^1.7.5",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "express-rate-limit": "^7.5.0",
+    "firebase-admin": "^14.5.0",
+    "helmet": "^8.0.0",
+    "hpp": "^0.2.3",
+    "ioredis": "^5.11.1",
+    "jsonwebtoken": "^9.0.3",
+    "mongoose": "^8.9.5",
+    "multer": "^2.4.0",
+    "nodemailer": "^10.1.7",
+    "pino": "^9.6.0",
+    "pino-http": "^10.4.0",
+    "zod": "^3.24.1"
+  }
+}
