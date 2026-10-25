@@ -17,6 +17,7 @@
     "test:integration": "node --require ./test/setup-env.js --test --test-concurrency=1 test/integration/*.int.test.js",
     "sync-indexes": "node scripts/sync-indexes.js",
     "reconcile-stock": "node scripts/reconcile-stock.js",
+    "backfill-product-audience": "node scripts/backfill-product-audience.js",
     "worker": "node scripts/worker.js",
     "worker:once": "node scripts/worker.js --once",
     "postman": "node scripts/generate-postman.js"

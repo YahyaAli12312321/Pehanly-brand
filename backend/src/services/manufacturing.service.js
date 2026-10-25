@@ -745,17 +745,15 @@ async function listAdminCatalog(documentType) {
     );
   }
 
-  let query = Manufacturing.find({ documentType });
-
-  if (documentType === MANUFACTURING_DOCUMENT_TYPES.STYLE) {
-    query = query.populate('category', 'name slug');
-  } else if (
-    documentType === MANUFACTURING_DOCUMENT_TYPES.VARIANT
-  ) {
-    query = query.populate('style', 'name slug');
-  }
-
-  return query
+  return Manufacturing.find({ documentType })
+    .populate(
+      documentType === MANUFACTURING_DOCUMENT_TYPES.STYLE
+        ? 'category'
+        : documentType === MANUFACTURING_DOCUMENT_TYPES.VARIANT
+          ? 'style'
+          : null,
+      'name slug',
+    )
     .sort({ sortOrder: 1, createdAt: -1 })
     .lean();
 }

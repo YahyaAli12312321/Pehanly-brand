@@ -15,19 +15,21 @@ import { LoadingSkeleton } from "../common/LoadingSkeleton";
 import { VariantCard } from "./VariantCard";
 import { countUnsaved, isUnsaved, newVariantDraft, validateVariant, variantToDraft } from "./variantDraft";
 
+import { PRODUCT_IMAGE_LIMIT, AUDIENCE_OPTIONS, imageCountError } from "../../lib/productLimits";
+
 const EDITOR_STEPS = ["Basic Info", "Category & Flags", "Images", "Color Variants", "Sizes & SKUs", "Wholesale & Pricing", "SEO & Publish"];
 const input = (bad) => `w-full text-xs px-3 py-2 bg-slate-50 border rounded-lg focus:ring-1 focus:ring-[#00130d] outline-none ${bad ? "border-rose-400" : "border-slate-200"}`;
 const slugify = (v) => v.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
 
 const EMPTY = {
-  name: "", slug: "", shortDescription: "", description: "", category: "", generalImages: [],
+  name: "", slug: "", shortDescription: "", description: "", category: "", audience: "", generalImages: [],
   isFeatured: false, isNewArrival: false, isBestSeller: false,
   wholesaleEnabled: false, wholesaleMoq: 12, wholesaleTiers: [], seoTitle: "", seoDescription: "", status: "draft",
 };
 
 const fromProduct = (p) => ({
   name: p.name || "", slug: p.slug || "", shortDescription: p.shortDescription || "", description: p.description || "",
-  category: p.category?._id || p.category || "", generalImages: p.generalImages || [],
+  category: p.category?._id || p.category || "", audience: p.audience || "", generalImages: p.generalImages || [],
   isFeatured: !!p.isFeatured, isNewArrival: !!p.isNewArrival, isBestSeller: !!p.isBestSeller,
   wholesaleEnabled: !!p.wholesale?.isEnabled, wholesaleMoq: p.wholesale?.moq || 12, wholesaleTiers: tiersFromApi(p.wholesale?.tiers),
   seoTitle: p.seo?.title || "", seoDescription: p.seo?.description || "", status: p.status || "draft",
@@ -115,6 +117,7 @@ export const ProductEditor = ({ isOpen, productId, canManage, onClose }) => {
     if (form.name.trim().length < 2) f.name = "Name must be at least 2 characters";
     if (form.slug && !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(form.slug)) f.slug = "Use lowercase letters, numbers and hyphens";
     if (!form.category) f.category = "Choose a category";
+    { const e = imageCountError(form.generalImages); if (e) f.generalImages = e; }
     if (form.shortDescription.length > 300) f.shortDescription = "Max 300 characters";
     if (form.wholesaleEnabled && !(Number(form.wholesaleMoq) >= 1)) f["wholesale.moq"] = "MOQ must be at least 1";
     if (form.wholesaleEnabled) {
@@ -346,6 +349,12 @@ export const ProductEditor = ({ isOpen, productId, canManage, onClose }) => {
               </select>
               {categoriesQuery.isError && <span className="text-xs text-rose-600">Couldn't load categories. <button type="button" className="underline" onClick={() => categoriesQuery.refetch()}>Retry</button></span>}
             </FormField>
+            <FormField label="Audience" error={fe.audience}>
+              <select value={form.audience} onChange={(e) => set({ audience: e.target.value })} className={input(fe.audience)} data-testid="audience-select">
+                {AUDIENCE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+              </select>
+              <span className="text-[11px] text-slate-500">Men shows Men + Unisex; Women shows Women + Unisex. “Same as category” keeps the category’s audience.</span>
+            </FormField>
             <div className="pt-4 border-t border-slate-100 space-y-3">
               {[["isFeatured", "Featured On Storefront", "Display prominently on homepage flagship carousel"], ["isNewArrival", "New Arrival", "Show the New Arrival badge and list under New Arrivals"], ["isBestSeller", "Best Seller", "Show the Best Seller badge and list under Best Sellers"]].map(([k, t, d]) => <label key={k} className="flex items-center justify-between cursor-pointer">
                   <div>
@@ -360,9 +369,9 @@ export const ProductEditor = ({ isOpen, productId, canManage, onClose }) => {
         {step === 2 && <div className="space-y-3">
             <div>
               <h4 className="text-xs font-semibold text-slate-900">General product images</h4>
-              <p className="text-[11px] text-slate-500">Uploaded through the media library (max 20). The first image is the primary thumbnail. Colour-specific images are added under Color Variants.</p>
+              <p className="text-[11px] text-slate-500">Uploaded through the media library (max {PRODUCT_IMAGE_LIMIT}). Each image can be cropped to Square, Portrait or Landscape first. The first image is the primary thumbnail. Colour-specific images are added under Color Variants.</p>
             </div>
-            <ImageGalleryUpload value={form.generalImages} onChange={(generalImages) => set({ generalImages })} purpose="product_image" max={20} disabled={!canManage} />
+            <ImageGalleryUpload value={form.generalImages} onChange={(generalImages) => set({ generalImages })} purpose="product_image" max={PRODUCT_IMAGE_LIMIT} adjust disabled={!canManage} />
             {fe.generalImages && <span className="text-xs text-rose-600">{fe.generalImages}</span>}
           </div>}
 

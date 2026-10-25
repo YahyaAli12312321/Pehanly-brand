@@ -16,6 +16,8 @@ exports.productsQuery = z
   .object({
     category: slug.optional(), // category slug; sub-categories are included
     search: z.string().trim().max(120).optional(),
+    // men => men + unisex, women => women + unisex, unisex => unisex only
+    audience: z.enum(['men', 'women', 'unisex']).optional(),
     featured: z.enum(['true', 'false']).transform((v) => v === 'true').optional(),
     sort: z.enum(['newest', 'price_asc', 'price_desc', 'name']).default('newest'),
     // Only affects price sorting (which price to sort by). Omitted = PKR.

@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import { ImagePlus, Loader2, Star, X } from 'lucide-react';
 import { mediaApi, MEDIA_PURPOSES, toImageRef } from '../../services/mediaApi';
 import { errorMessage } from '../../lib/apiError';
+import { ImageCropDialog } from './ImageCropDialog';
 
 const ACCEPT = 'image/jpeg,image/png,image/webp';
 
@@ -9,10 +10,11 @@ const ACCEPT = 'image/jpeg,image/png,image/webp';
  * Multi-image field backed by POST /media. value: [{ url, publicId, alt }]; first image = primary.
  * Files upload one by one; failures are listed without losing the ones that succeeded.
  */
-export const ImageGalleryUpload = ({ value = [], onChange, purpose, max = 10, disabled = false, columns = 'grid-cols-3 sm:grid-cols-5', aspect = 'aspect-[3/4]' }) => {
+export const ImageGalleryUpload = ({ value = [], onChange, purpose, max = 10, adjust = false, disabled = false, columns = 'grid-cols-3 sm:grid-cols-5', aspect = 'aspect-[3/4]' }) => {
   const inputRef = useRef(null);
   const [busy, setBusy] = useState(null); // { done, total, percent }
   const [problems, setProblems] = useState([]);
+  const [crop, setCrop] = useState(null); // { file, index, total, resolve }
   const maxMb = MEDIA_PURPOSES[purpose]?.maxMb ?? 8;
   const room = Math.max(0, max - value.length);
 
@@ -35,9 +37,21 @@ export const ImageGalleryUpload = ({ value = [], onChange, purpose, max = 10, di
     if (!accepted.length) return;
     let current = [...value];
     for (let i = 0; i < accepted.length; i += 1) {
+      let file = accepted[i];
+      if (adjust) {
+        // Optional crop step: resolves to the adjusted file, the untouched original, or null (skip this image).
+        file = await new Promise((resolve) => setCrop({ file, index: i + 1, total: accepted.length, resolve }));
+        setCrop(null);
+        if (!file) { issues.push(`${accepted[i].name}: skipped`); setProblems([...issues]); continue; }
+        if (file.size > maxMb * 1024 * 1024) {
+          issues.push(`${accepted[i].name}: adjusted image is larger than ${maxMb} MB — choose Use original or a smaller image`);
+          setProblems([...issues]);
+          continue;
+        }
+      }
       setBusy({ done: i, total: accepted.length, percent: 0 });
       try {
-        const media = await mediaApi.upload(accepted[i], purpose, {
+        const media = await mediaApi.upload(file, purpose, {
           onProgress: (percent) => setBusy({ done: i, total: accepted.length, percent }),
         });
         current = [...current, toImageRef(media)];
@@ -55,6 +69,16 @@ export const ImageGalleryUpload = ({ value = [], onChange, purpose, max = 10, di
 
   return (
     <div className="space-y-3">
+      {crop && (
+        <ImageCropDialog
+          file={crop.file}
+          index={crop.index}
+          total={crop.total}
+          onDone={(f) => crop.resolve(f)}
+          onSkip={() => crop.resolve(crop.file)}
+          onCancel={() => crop.resolve(null)}
+        />
+      )}
       <div className="flex items-center gap-3">
         <button
           type="button"

@@ -1,0 +1,19 @@
+# PEHANLY — Product management updates (Unisex, image adjusting, 25 images)
+
+## 1. Unisex / audience
+* **Data model.** `Product.audience` (`men | women | unisex`, optional, **no default**). Categories already carry a free-form `audience`; a product without its own audience *inherits* the audience of its category (or nearest ancestor). Nothing is reclassified: existing products keep behaving exactly as before.
+* **Rule (backend, `src/services/audience.js`).** `audience=men` → Men + Unisex; `audience=women` → Women + Unisex; `audience=unisex` → Unisex only. An explicit product audience wins over the category's. Men-only never appears under Women and vice versa. A product with no audience in a category with no audience is not claimed by Men or Women (it stays in All) — it is never silently turned into Unisex.
+* **API.** `GET /catalog/products?audience=men|women|unisex` (combines with `search`, `category`, `sort`, paging); `GET /catalog/categories?audience=men|women` also returns Unisex categories; `GET /admin/products?audience=`; create/update accept `audience` (`null` clears it back to "same as category"). Product cards expose `audience`.
+* **Admin.** Product editor → *Category & Flags* → **Audience** (Same as category / Men / Women / Unisex).
+* **Storefront.** Shop page has an **All / Men / Women** control (`/shop?audience=men`), a removable filter chip, category links that keep the choice, and *Shop Men / Shop Women* links in the mobile menu. The desktop header was deliberately not given two extra links (it is already full at 1280px).
+* **Migration.** None is required. Optional: `npm run backfill-product-audience` (dry run) / `-- --apply` stamps the inherited category audience onto products with no audience. It never invents Unisex and lists products it cannot resolve.
+
+## 2. Image adjusting at upload
+* **Architecture finding.** The backend stores one Cloudinary master per upload (bounded to 2400px) and exposes `optimizedUrl`/`thumbUrl`; there is no stored per-image ratio or crop metadata, and no field to attach one. Smallest safe solution: **crop in the browser before upload**, so the single stored master *is* the chosen shape. No second copy, no schema change, no change to ordering, alt text or Cloudinary.
+* **Workflow.** Selecting product images opens *Adjust image*: **Original** (file uploaded untouched), **Square 1:1**, **Portrait 4:5**, **Landscape 3:2**; drag (or arrow keys) to reposition, zoom 1–4×, live preview that is the exact exported crop. *Use original* and *Skip this image* are always available. Output is never upscaled, long side capped at 2400px (the backend's own cap), PNG stays PNG, others JPEG q0.92. Errors (unreadable image, result larger than the purpose limit, upload failure, wrong type) are listed per file.
+* **Not stretched.** The export canvas always has the aspect of the source rectangle it is drawn from (unit-tested for every preset/zoom, and browser-tested with a circle that stays round).
+* **Display.** The chosen shape is real pixels, and the storefront honours it: product page (4:5 frame) and shop cards (3:4 frame) use `FramedImage` — images within 15% of the frame shape fill it, Square/Landscape are shown **whole** over a soft blurred copy, never cropped again. Banners keep their own `BannerImage`; manufacturing/printing/banners were not touched.
+* **Limitation.** Existing images cannot be re-cropped in place (no original is kept separately from the master); upload a new one. Cropping is applied only on the product gallery upload (opt-in `adjust` prop).
+
+## 3. 25 images per product
+* Backend: `PRODUCT_IMAGE_LIMIT = 25` in `product.validators.js` (create and update). Admin: `PRODUCT_IMAGE_LIMIT` in `fe/src/lib/productLimits.js` drives the gallery `max`, the help text and a submit-time check. Unchanged on purpose: variant images (12), printing samples (20), manufacturing and banners.

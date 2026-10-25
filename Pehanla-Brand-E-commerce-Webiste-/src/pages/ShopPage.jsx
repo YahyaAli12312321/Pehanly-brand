@@ -3,6 +3,7 @@ import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { useCategoriesQuery, useProductsQuery, usePublicSettingsQuery } from '../hooks/useQueries';
 import { buildPath } from '../routes';
+import FramedImage from '../components/FramedImage';
 import Seo from '../seo/Seo';
 import { breadcrumbSchema, itemListSchema } from '../seo/schema';
 import { ErrorBlock, EmptyBlock } from '../components/StateViews';
@@ -35,6 +36,7 @@ export default function ShopPage() {
 
   const q = (params.get('q') || '').trim();
   const sort = SORT_OPTIONS.some((o) => o.value === params.get('sort')) ? params.get('sort') : 'newest';
+  const audience = ['men', 'women'].includes(params.get('audience')) ? params.get('audience') : '';
   const page = Math.max(1, Number.parseInt(params.get('page') || '1', 10) || 1);
 
   const [searchInput, setSearchInput] = useState(q);
@@ -55,6 +57,7 @@ export default function ShopPage() {
 
   const { data, isLoading, isError, error, refetch, isPlaceholderData } = useProductsQuery({
     category: categorySlug,
+    audience: audience || undefined, // Men/Women also return Unisex products (decided by the backend)
     search: q || undefined,
     sort,
     page,
@@ -103,9 +106,10 @@ export default function ShopPage() {
 
   // ----- SEO: filters/sort/search must not create indexable duplicates -----
   const basePath = categorySlug ? `/shop/${categorySlug}` : '/shop';
-  const isFilteredView = Boolean(q) || sort !== 'newest';
+  const isFilteredView = Boolean(q) || Boolean(audience) || sort !== 'newest';
   const canonicalPath = page > 1 && !isFilteredView ? `${basePath}?page=${page}` : basePath;
-  const heading = q ? `Results for “${q}”` : activeCategory?.name || (categorySlug ? 'Collection' : 'Shop All');
+  const audienceLabel = audience === 'men' ? 'Men' : audience === 'women' ? 'Women' : '';
+  const heading = q ? `Results for “${q}”` : activeCategory?.name ? (audienceLabel ? `${audienceLabel} · ${activeCategory.name}` : activeCategory.name) : categorySlug ? 'Collection' : audienceLabel || 'Shop All';
   const metaTitle = q ? `Search: ${q}` : activeCategory?.name ? `${activeCategory.name}${page > 1 ? ` - Page ${page}` : ''}` : `Shop Clothing${page > 1 ? ` - Page ${page}` : ''}`;
   const metaDescription =
     activeCategory?.description ||
@@ -195,13 +199,21 @@ export default function ShopPage() {
             </button>
           </form>
 
-          {(refinementCount > 0 || q || categorySlug) && (
+          {(refinementCount > 0 || q || categorySlug || audience) && (
             <div className="mt-4 flex flex-wrap items-center gap-2 text-xs">
               <span className="text-[10px] uppercase font-bold tracking-wider text-muted mr-1">Active Filters:</span>
+              {audience && (
+                <span className="inline-flex items-center gap-1.5 pl-3 pr-2 py-1 rounded-full bg-primary text-white text-[11px]">
+                  Shopping for: <strong>{audienceLabel}</strong>
+                  <button type="button" aria-label="Remove audience filter" onClick={() => updateParams({ audience: '' })} className="hover:text-accent cursor-pointer">
+                    <span className="material-symbols-outlined text-sm leading-none" aria-hidden="true">close</span>
+                  </button>
+                </span>
+              )}
               {activeCategory && (
                 <span className="inline-flex items-center gap-1.5 pl-3 pr-2 py-1 rounded-full bg-primary text-white text-[11px]">
                   Category: <strong>{activeCategory.name}</strong>
-                  <Link to={q ? `/shop?q=${encodeURIComponent(q)}` : '/shop'} aria-label="Remove category filter" className="hover:text-accent">
+                  <Link to={buildPath('shop', { ...(q ? { q } : {}), ...(audience ? { audience } : {}) })} aria-label="Remove category filter" className="hover:text-accent">
                     <span className="material-symbols-outlined text-sm leading-none" aria-hidden="true">close</span>
                   </Link>
                 </span>
@@ -259,6 +271,20 @@ export default function ShopPage() {
             </div>
 
             <div className="flex flex-col gap-3 text-xs">
+              <div role="group" aria-label="Shopping for" className="bg-surface-card rounded-xl border border-border-subtle shadow-xs p-1.5 flex gap-1" data-testid="audience-filter">
+                {[['', 'All'], ['men', 'Men'], ['women', 'Women']].map(([value, label]) => (
+                  <button
+                    key={value || 'all'}
+                    type="button"
+                    aria-pressed={audience === value}
+                    onClick={() => updateParams({ audience: value })}
+                    className={`flex-1 h-9 rounded-lg text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer ${audience === value ? 'bg-primary text-white' : 'text-muted hover:text-primary hover:bg-surface-container'}`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+              <p className="-mt-3 px-1 text-[11px] text-muted">Men and Women also include Unisex styles.</p>
               <details className="group bg-surface-card rounded-xl border border-border-subtle shadow-xs overflow-hidden" open>
                 <summary className={summaryClass}>
                   <span>Categories</span>
@@ -266,14 +292,14 @@ export default function ShopPage() {
                 </summary>
                 <ul className="px-4 pb-4 flex flex-col gap-2.5">
                   <li>
-                    <Link to={q ? `/shop?q=${encodeURIComponent(q)}` : '/shop'} className="flex items-center gap-2 group">
+                    <Link to={buildPath('shop', { ...(q ? { q } : {}), ...(audience ? { audience } : {}) })} className="flex items-center gap-2 group">
                       <Check on={!categorySlug} />
                       <span className={!categorySlug ? 'font-bold text-primary' : 'text-on-surface'}>All Products</span>
                     </Link>
                   </li>
                   {(categories || []).map((cat) => (
                     <li key={cat.id}>
-                      <Link to={buildPath('shop', { category: cat.slug, ...(q ? { q } : {}) })} className="flex items-center gap-2 group">
+                      <Link to={buildPath('shop', { category: cat.slug, ...(q ? { q } : {}), ...(audience ? { audience } : {}) })} className="flex items-center gap-2 group">
                         <Check on={categorySlug === cat.slug} />
                         <span className={categorySlug === cat.slug ? 'font-bold text-primary' : 'text-on-surface'}>{cat.name}</span>
                       </Link>
@@ -431,16 +457,14 @@ export default function ShopPage() {
                         <div className="relative w-full aspect-3/4 bg-surface-container overflow-hidden">
                           <Link to={`/product/${item.slug}`} aria-label={`View ${item.name}`} tabIndex={-1}>
                             {item.image?.url ? (
-                              <img
+                              <FramedImage
                                 src={item.image.url}
                                 alt={item.image.alt || item.name}
-                                width="600"
-                                height="800"
-                                loading={idx < 3 ? 'eager' : 'lazy'}
-                                fetchPriority={idx === 0 ? 'high' : undefined}
-                                decoding="async"
-                                referrerPolicy="no-referrer"
-                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+                                eager={idx < 3}
+                                hoverZoom
+                                width={600}
+                                height={800}
+                                ratio={0.75}
                               />
                             ) : (
                               <div className="w-full h-full flex items-center justify-center text-muted"><span className="material-symbols-outlined text-4xl" aria-hidden="true">checkroom</span></div>

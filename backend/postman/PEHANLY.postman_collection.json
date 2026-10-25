@@ -2848,6 +2848,12 @@
                       "description": "optional - string"
                     },
                     {
+                      "key": "audience",
+                      "value": "men",
+                      "disabled": true,
+                      "description": "optional - enum(men | women | unisex)"
+                    },
+                    {
                       "key": "featured",
                       "value": "true",
                       "disabled": true,
@@ -3058,6 +3064,12 @@
                       "value": "true",
                       "disabled": true,
                       "description": "optional - enum(true | false)"
+                    },
+                    {
+                      "key": "audience",
+                      "value": "men",
+                      "disabled": true,
+                      "description": "optional - enum(men | women | unisex)"
                     },
                     {
                       "key": "sortBy",
@@ -3318,7 +3330,7 @@
                   "query": [],
                   "variable": []
                 },
-                "description": "**Access:** Staff or owner - permission `catalog.manage` (owner always passes)\n\n**Success status:** 201\n\n**Possible errors:** 422 VALIDATION_ERROR (body/query/params rejected; `errors[]` lists each field); 401 UNAUTHORIZED / SESSION_EXPIRED; 403 FORBIDDEN / PERMISSION_DENIED; 409 conflict (a business rule or a duplicate, e.g. insufficient stock)\n\n**Body fields:**\n- `name` (required, string)\n- `slug` (optional, string)\n- `shortDescription` (optional, string)\n- `description` (optional, string)\n- `category` (required, string)\n- `generalImages` (optional, array)\n- `isFeatured` (optional, boolean)\n- `isNewArrival` (optional, boolean)\n- `isBestSeller` (optional, boolean)\n- `wholesale` (optional, object)\n- `seo` (optional, object)",
+                "description": "**Access:** Staff or owner - permission `catalog.manage` (owner always passes)\n\n**Success status:** 201\n\n**Possible errors:** 422 VALIDATION_ERROR (body/query/params rejected; `errors[]` lists each field); 401 UNAUTHORIZED / SESSION_EXPIRED; 403 FORBIDDEN / PERMISSION_DENIED; 409 conflict (a business rule or a duplicate, e.g. insufficient stock)\n\n**Body fields:**\n- `name` (required, string)\n- `slug` (optional, string)\n- `shortDescription` (optional, string)\n- `description` (optional, string)\n- `category` (required, string)\n- `generalImages` (optional, array)\n- `audience` (optional, enum(men | women | unisex))\n- `isFeatured` (optional, boolean)\n- `isNewArrival` (optional, boolean)\n- `isBestSeller` (optional, boolean)\n- `wholesale` (optional, object)\n- `seo` (optional, object)",
                 "body": {
                   "mode": "raw",
                   "raw": "{\n  \"name\": \"Sample Name\",\n  \"category\": \"{{categoryId}}\"\n}",

@@ -283,6 +283,16 @@ export default function Header() {
             </div>
 
             <nav aria-label="Mobile" className="flex flex-col gap-2 font-headline text-sm font-semibold tracking-wider uppercase">
+              {[['Shop Men', 'men'], ['Shop Women', 'women']].map(([label, audience]) => (
+                <Link
+                  key={audience}
+                  to={buildPath('shop', { audience })}
+                  onClick={closeMenu}
+                  className="py-2.5 border-b border-border-subtle flex items-center justify-between text-sm text-muted hover:text-primary font-medium transition-colors"
+                >
+                  <span>{label}</span>
+                </Link>
+              ))}
               {navLinks.map((link) => {
                 const isActive = currentRoute === link.route ||
                   (link.route === 'custom-manufacturing' && currentRoute === 'manufacturing-detail') ||

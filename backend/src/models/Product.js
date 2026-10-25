@@ -13,6 +13,8 @@ const productSchema = new mongoose.Schema(
     category: { type: mongoose.Schema.Types.ObjectId, ref: 'Category', required: true, index: true },
     generalImages: { type: [media], default: [] },
     status: { type: String, enum: ['draft', 'active', 'inactive'], default: 'draft', index: true },
+    // Who the product is designed for. Optional on purpose: unset = inherit the category's audience (never defaulted to unisex).
+    audience: { type: String, enum: ['men', 'women', 'unisex'], index: true },
     isFeatured: { type: Boolean, default: false },
     isNewArrival: { type: Boolean, default: false },
     isBestSeller: { type: Boolean, default: false },

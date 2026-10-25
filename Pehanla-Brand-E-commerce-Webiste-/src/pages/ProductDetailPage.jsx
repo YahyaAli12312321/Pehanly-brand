@@ -18,45 +18,11 @@ import Seo from '../seo/Seo';
 import { breadcrumbSchema, productSchema } from '../seo/schema';
 import { ErrorBlock, FieldError, LoadingBlock } from '../components/StateViews';
 import NotFoundPage from './NotFoundPage';
+import FramedImage from '../components/FramedImage';
 import { discountPercent, formatDate } from '../utils/format';
 import { formatMoney, priceRange, skuCompareAt, skuPrice, soldIn } from '../utils/currency';
 import { useCurrency } from '../store/useCurrencyStore';
 import { toCartLine } from '../utils/product';
-
-/**
- * Fixed 4:5 frame for every product image so model shots and flat mock-ups look the same size.
- * Portrait-ish images fill the frame (cover). Landscape / very tall / square-flat mock-ups are shown whole
- * (contain) over a soft blurred copy of themselves, so nothing is cropped and there are no empty bars.
- */
-function FramedImage({ src, alt = '', eager = false, hoverZoom = false, width = 800, height = 1000, className = '' }) {
-  const [fit, setFit] = useState('cover');
-  useEffect(() => { setFit('cover'); }, [src]);
-  const onLoad = (e) => {
-    const { naturalWidth: w, naturalHeight: h } = e.currentTarget;
-    if (!w || !h) return;
-    const ratio = w / h;
-    setFit(ratio >= 0.6 && ratio <= 1.0 ? 'cover' : 'contain');
-  };
-  return (
-    <div className={`relative w-full h-full overflow-hidden bg-surface-container-low ${className}`}>
-      {fit === 'contain' && (
-        <img src={src} alt="" aria-hidden="true" className="absolute inset-0 w-full h-full object-cover scale-110 blur-2xl opacity-40" referrerPolicy="no-referrer" />
-      )}
-      <img
-        src={src}
-        alt={alt}
-        width={width}
-        height={height}
-        loading={eager ? 'eager' : 'lazy'}
-        fetchPriority={eager ? 'high' : undefined}
-        decoding="async"
-        referrerPolicy="no-referrer"
-        onLoad={onLoad}
-        className={`relative w-full h-full object-center ${fit === 'cover' ? 'object-cover' : 'object-contain'} ${hoverZoom ? 'transition-transform duration-500 ease-out group-hover:scale-105' : ''}`}
-      />
-    </div>
-  );
-}
 
 function Stars({ value, size = 18 }) {
   return (
@@ -310,9 +276,9 @@ export default function ProductDetailPage() {
         <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] gap-6 lg:gap-10 items-start">
           {/* Gallery */}
           <div className="min-w-0 flex flex-col gap-4">
-            <div className="flex flex-col-reverse md:flex-row gap-3 lg:gap-4">
+            <div className="flex flex-col-reverse md:flex-row md:items-start gap-3 lg:gap-4">
               {gallery.length > 1 && (
-                <div className="flex md:flex-col gap-3 overflow-x-auto md:overflow-visible shrink-0 pb-2 md:pb-0" role="tablist" aria-label="Product images">
+                <div className="flex md:flex-col gap-3 overflow-x-auto md:overflow-x-hidden md:overflow-y-auto md:max-h-[min(72vh,560px)] shrink-0 pb-2 md:pb-0 md:pr-1" role="tablist" aria-label="Product images">
                   {gallery.map((img, idx) => (
                     <button
                       key={img.url}
@@ -328,7 +294,7 @@ export default function ProductDetailPage() {
                   ))}
                 </div>
               )}
-              <div className="relative w-full min-w-0 aspect-[4/5] bg-surface-container-low rounded-xl overflow-hidden shadow-sm group border border-border-subtle mx-auto" style={{ maxWidth: 'min(100%, calc(72vh * 0.8), 560px)' }}>
+              <div className="relative w-full min-w-0 aspect-[4/5] shrink-0 md:self-start bg-surface-container-low rounded-xl overflow-hidden shadow-sm group border border-border-subtle mx-auto" style={{ maxWidth: 'min(100%, calc(72vh * 0.8), 560px)' }}>
                 {gallery[activeThumb] ? (
                   <FramedImage
                     src={gallery[activeThumb].url}

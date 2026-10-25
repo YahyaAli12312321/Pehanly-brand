@@ -7,6 +7,7 @@ const Category = require('../models/Category');
 const ApiError = require('../utils/ApiError');
 const { slugify, escapeRegex } = require('../utils/slugify');
 const categoryService = require('./category.service');
+const { audienceCondition } = require('./audience');
 const audit = require('./audit.service');
 const { variantView, summarize } = require('../utils/presenter');
 
@@ -56,6 +57,10 @@ async function list(q) {
   if (q.status) filter.status = q.status;
   if (q.featured !== undefined) filter.isFeatured = q.featured;
   if (q.category) filter.category = { $in: (await categoryService.subtreeIds(q.category)).map((i) => new mongoose.Types.ObjectId(i)) };
+  if (q.audience) {
+    const cond = await audienceCondition(q.audience, categoryService);
+    filter.$and = [...(filter.$and || []), cond];
+  }
   if (q.stock) {
     const ids = await Sku.distinct('product', { isEnabled: true, stockStatus: q.stock });
     filter._id = { $in: ids };

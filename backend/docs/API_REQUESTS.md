@@ -501,6 +501,7 @@ Optional fields: `slug`, `description`, `image`, `parentCategory`, `audience`, `
   - `status` = `draft` (optional - enum(draft | active | inactive), optional)
   - `stock` = `low` (optional - enum(low | out), optional)
   - `featured` = `true` (optional - enum(true | false), optional)
+  - `audience` = `men` (optional - enum(men | women | unisex), optional)
   - `sortBy` = `createdAt` (optional - enum(createdAt | name | updatedAt), optional)
   - `sortDir` = `asc` (optional - enum(asc | desc), optional)
   - `page` = `1` (optional - number)
@@ -545,7 +546,7 @@ Optional fields: `slug`, `description`, `image`, `parentCategory`, `audience`, `
   "category": "{{categoryId}}"
 }
 ```
-Optional fields: `slug`, `shortDescription`, `description`, `generalImages`, `isFeatured`, `isNewArrival`, `isBestSeller`, `wholesale`, `seo`
+Optional fields: `slug`, `shortDescription`, `description`, `generalImages`, `audience`, `isFeatured`, `isNewArrival`, `isBestSeller`, `wholesale`, `seo`
 
 ### GET /admin/products/:id
 
@@ -593,6 +594,7 @@ Optional fields: `slug`, `shortDescription`, `description`, `generalImages`, `is
 - **Query params:**
   - `category` = `{{categoryId}}` (optional - string, optional)
   - `search` = `sample` (optional - string, optional)
+  - `audience` = `men` (optional - enum(men | women | unisex), optional)
   - `featured` = `true` (optional - enum(true | false), optional)
   - `sort` = `newest` (optional - enum(newest | price_asc | price_desc | name), optional)
   - `currency` = `PKR` (optional - enum(PKR | USD), optional)

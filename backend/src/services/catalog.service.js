@@ -23,6 +23,7 @@ const Category = require('../models/Category');
 const ApiError = require('../utils/ApiError');
 const { escapeRegex } = require('../utils/slugify');
 const categoryService = require('./category.service');
+const { audienceCondition } = require('./audience');
 
 const MAX_PURCHASABLE_QUANTITY = 20;
 
@@ -72,6 +73,7 @@ function productCardView(product, variants, skus) {
       ? { name: product.category.name, slug: product.category.slug }
       : null,
     image: cover ? { url: cover.url, alt: cover.alt } : null,
+    audience: product.audience || null,
     isFeatured: Boolean(product.isFeatured),
     isNewArrival: Boolean(product.isNewArrival),
     isBestSeller: Boolean(product.isBestSeller),
@@ -109,7 +111,7 @@ async function activeCategoryIds() {
 
 async function listCategories({ audience, homeOnly } = {}) {
   const filter = { isActive: true };
-  if (audience) filter.audience = audience;
+  if (audience) filter.audience = ['men', 'women'].includes(audience) ? { $in: [audience, 'unisex'] } : audience;
   if (homeOnly) filter.showOnHome = true;
 
   const rows = await Category.find(filter).sort({ sortOrder: 1, name: 1 }).lean();
@@ -147,6 +149,11 @@ async function listProducts(q) {
   }
 
   if (q.featured !== undefined) filter.isFeatured = q.featured;
+
+  if (q.audience) {
+    const cond = await audienceCondition(q.audience, categoryService);
+    filter.$and = [...(filter.$and || []), cond];
+  }
 
   // Price sorting needs the SKU rollup, which lives on another collection.
   // Keep the query simple and sort price in memory only for the requested page window.

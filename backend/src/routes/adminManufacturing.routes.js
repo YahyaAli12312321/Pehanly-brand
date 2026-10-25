@@ -65,6 +65,8 @@ router.patch(
   asyncHandler(controller.approveRequest),
 );
 
+/* Category */
+
 router.post(
   '/categories',
   validate({ body: createCategoryBody }),

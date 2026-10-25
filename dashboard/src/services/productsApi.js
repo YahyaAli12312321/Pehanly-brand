@@ -53,6 +53,7 @@ function productBody(f) {
     shortDescription: (f.shortDescription || '').trim(),
     description: (f.description || '').trim(),
     category: f.category,
+    audience: f.audience || null,
     generalImages: media(f.generalImages),
     isFeatured: !!f.isFeatured,
     isNewArrival: !!f.isNewArrival,
