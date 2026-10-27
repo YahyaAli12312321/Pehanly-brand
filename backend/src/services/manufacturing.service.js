@@ -731,6 +731,11 @@ async function setCatalogStatus({
 
 /* ADMIN CATALOG */
 
+const CATALOG_PARENT_PATH = Object.freeze({
+  [MANUFACTURING_DOCUMENT_TYPES.STYLE]: 'category',
+  [MANUFACTURING_DOCUMENT_TYPES.VARIANT]: 'style',
+});
+
 async function listAdminCatalog(documentType) {
   const allowedTypes = [
     MANUFACTURING_DOCUMENT_TYPES.CATEGORY,
@@ -745,17 +750,14 @@ async function listAdminCatalog(documentType) {
     );
   }
 
-  return Manufacturing.find({ documentType })
-    .populate(
-      documentType === MANUFACTURING_DOCUMENT_TYPES.STYLE
-        ? 'category'
-        : documentType === MANUFACTURING_DOCUMENT_TYPES.VARIANT
-          ? 'style'
-          : null,
-      'name slug',
-    )
-    .sort({ sortOrder: 1, createdAt: -1 })
-    .lean();
+  // Only styles (-> category) and variants (-> style) have a parent reference to populate.
+  // Categories have none: calling .populate(null, ...) makes Mongoose throw, which was the HTTP 500.
+  const query = Manufacturing.find({ documentType });
+  const parentPath = CATALOG_PARENT_PATH[documentType];
+
+  if (parentPath) query.populate(parentPath, 'name slug');
+
+  return query.sort({ sortOrder: 1, createdAt: -1 }).lean();
 }
 
 /* ADMIN REQUESTS */

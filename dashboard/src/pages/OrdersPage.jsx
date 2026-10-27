@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { Truck, Eye, User, Phone, Printer, Loader2, Save } from "lucide-react";
@@ -10,6 +10,7 @@ import { useAuth } from "../hooks/useAuth";
 import { useDebouncedValue } from "../hooks/useDebouncedValue";
 import { errorMessage } from "../lib/apiError";
 import { splitFormError } from "../lib/formErrors";
+import { effectiveMethod, isKarachiCity, isShipmentDirty, missingForShipping, shipmentRequiredMessage } from "../lib/shipment";
 import { dateInputToIso, formatDate, formatDateTime, formatMoney, formatNumber, humanize } from "../lib/format";
 import { PageHeader } from "../components/common/PageHeader";
 import { SearchInput } from "../components/common/SearchInput";
@@ -196,7 +197,7 @@ export const OrdersPage = () => {
   });
   const shipMutation = useMutation({
     mutationFn: ({ id, data }) => ordersApi.updateShipment(id, data),
-    onSuccess: (updated) => { afterChange(updated); addToast("Shipment details saved."); setShipErr({ fields: {}, general: "" }); },
+    onSuccess: (updated, vars) => { afterChange(updated); if (!vars.silent) addToast("Shipment details saved."); setShipErr({ fields: {}, general: "" }); },
     onError: (err) => setShipErr(splitFormError(err, "Could not save shipment")),
   });
   const notesMutation = useMutation({
@@ -205,14 +206,40 @@ export const OrdersPage = () => {
     onError: (err) => addToast(errorMessage(err, "Could not save notes"), "error"),
   });
 
-  const applyStatus = () => {
-    if (!order || !nextStatus || statusMutation.isPending) return;
+  const applying = useRef(false); // synchronous guard: React state is too slow to stop a fast double click
+  const [busy, setBusy] = useState(false);
+  const applyStatus = async () => {
+    if (!order || !nextStatus || applying.current || statusMutation.isPending || shipMutation.isPending) return;
     if (nextStatus === "cancelled") return setConfirmCancel(true);
-    statusMutation.mutate({ id: order._id, status: nextStatus, note: statusNote });
+    applying.current = true;
+    setBusy(true);
+    const note = statusNote;
+    try {
+      if (nextStatus === "shipped") {
+        // The rider / courier fields live in this form until they are saved. Validate them, and save them FIRST, so the
+        // backend (which only ever reads the saved shipment) sees what the admin typed. Failure here stops the transition.
+        const missing = missingForShipping(ship, method);
+        if (missing.length) {
+          const fields = Object.fromEntries(missing.map((m) => [m.field, m.error]));
+          const general = shipmentRequiredMessage(missing);
+          setShipErr({ fields, general });
+          addToast(general, "error");
+          return;
+        }
+        if (isShipmentDirty(ship, order.shipment, method)) {
+          if (method === "local_rider" && !isKarachi) { setShipErr({ fields: {}, general: "Local rider delivery is only available for Karachi orders." }); return; }
+          try { await shipMutation.mutateAsync({ id: order._id, data: { ...ship, deliveryMethod: method }, silent: true }); } catch { return; }
+        }
+      }
+      try { await statusMutation.mutateAsync({ id: order._id, status: nextStatus, note }); } catch { /* onError already reported it */ }
+    } finally {
+      applying.current = false;
+      setBusy(false);
+    }
   };
   const shipLocked = order && (order.orderStatus === "delivered" || order.orderStatus === "cancelled");
-  const isKarachi = /karachi/i.test(order?.shippingAddress?.city || "");
-  const method = ship.deliveryMethod || (isKarachi ? "local_rider" : "courier");
+  const isKarachi = isKarachiCity(order?.shippingAddress?.city); // same rule as the backend: "Karachi", "Karachi East"…
+  const method = effectiveMethod(ship, isKarachi ? "Karachi" : order?.shippingAddress?.city);
   const saveShipment = () => {
     const fields = {};
     if (method === "local_rider") {
@@ -362,8 +389,8 @@ export const OrdersPage = () => {
                       <select value={nextStatus} onChange={(e) => setNextStatus(e.target.value)} className="flex-1 text-xs px-3 py-2 bg-white border border-slate-200 rounded-lg font-semibold focus:ring-1 focus:ring-[#00130d] outline-none">
                         {allowed.map((s) => <option key={s} value={s}>{humanize(s)}</option>)}
                       </select>
-                      <button onClick={applyStatus} disabled={statusMutation.isPending} className="px-4 py-2 bg-[#00130d] text-white text-xs font-semibold rounded-lg hover:bg-slate-800 transition-colors disabled:opacity-60 inline-flex items-center gap-1.5">
-                        {statusMutation.isPending && <Loader2 className="w-3.5 h-3.5 animate-spin" />}Apply
+                      <button onClick={applyStatus} disabled={busy || statusMutation.isPending || shipMutation.isPending} className="px-4 py-2 bg-[#00130d] text-white text-xs font-semibold rounded-lg hover:bg-slate-800 transition-colors disabled:opacity-60 inline-flex items-center gap-1.5">
+                        {(busy || statusMutation.isPending) && <Loader2 className="w-3.5 h-3.5 animate-spin" />}Apply
                       </button>
                     </div>
                     <input type="text" value={statusNote} maxLength={1000} onChange={(e) => setStatusNote(e.target.value)} placeholder="Optional audit log comment..." className="w-full text-xs px-3 py-1.5 bg-white border border-slate-200 rounded-lg outline-none" />
@@ -413,7 +440,7 @@ export const OrdersPage = () => {
               <FormField label="Tracking URL" error={shipErr.fields.trackingUrl}><input disabled={!canManage || shipLocked} type="url" placeholder="https://…" maxLength={500} value={ship.trackingUrl} onChange={(e) => setShip((s) => ({ ...s, trackingUrl: e.target.value }))} className={fld} /></FormField>
               </>}
               {order.shipment?.shippedAt && <div className="text-[11px] text-slate-500">Shipped {formatDateTime(order.shipment.shippedAt)}{order.shipment.deliveredAt ? ` · Delivered ${formatDateTime(order.shipment.deliveredAt)}` : ""}</div>}
-              {canManage && !shipLocked && <div className="flex justify-end"><button onClick={saveShipment} disabled={shipMutation.isPending} className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#00130d] text-white text-xs font-semibold rounded-lg hover:bg-slate-800 disabled:opacity-60">{shipMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}Save shipment</button></div>}
+              {canManage && !shipLocked && <div className="flex justify-end"><button onClick={saveShipment} disabled={shipMutation.isPending || busy} className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#00130d] text-white text-xs font-semibold rounded-lg hover:bg-slate-800 disabled:opacity-60">{shipMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}Save shipment</button></div>}
             </div>
 
             <div className="p-4 bg-white border border-slate-200 rounded-xl space-y-2 text-xs">

@@ -43,7 +43,12 @@ export const useAppStore = create(
       routeParams: {},
       setRouteState: (currentRoute, routeParams) => set({ currentRoute, routeParams }),
       navigate: (route, params = {}) => {
-        const target = buildPath(route, params);
+        // A signed-out customer sent to Sign In from another page comes back to it afterwards (?next=).
+        let p = params;
+        if (route === 'account' && typeof window !== 'undefined' && !get().isAuthenticated && !p.tab && !p.token && !p.next && !window.location.pathname.startsWith('/account')) {
+          p = { ...p, next: `${window.location.pathname}${window.location.search}` };
+        }
+        const target = buildPath(route, p);
         if (routerNavigate) routerNavigate(target);
         else if (typeof window !== 'undefined') window.location.assign(target);
       },

@@ -26,7 +26,7 @@ export const ROUTE_DEFS = {
   checkout: { path: '/checkout', build: () => '/checkout' },
   'order-success': { path: '/order-confirmation', build: () => '/order-confirmation' },
   'track-order': { path: '/track-order', build: () => '/track-order' },
-  account: { path: '/account', build: ({ tab, token } = {}) => `/account${qs({ tab, token })}` },
+  account: { path: '/account', build: ({ tab, token, next } = {}) => `/account${qs({ tab, token, next })}` },
   wishlist: { path: '/wishlist', build: () => '/wishlist' },
   about: { path: '/about', build: () => '/about' },
   wholesale: { path: '/wholesale', build: () => '/wholesale' },

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import {
   useAddressMutations,
@@ -24,6 +24,7 @@ import {
 import Seo from '../seo/Seo';
 import { ErrorBlock, FieldError, LoadingBlock } from '../components/StateViews';
 import { formatMoney, orderCurrency } from '../utils/currency';
+import { safeNext } from '../utils/safeNext';
 import { formatDate, formatPKR, isValidEmail, isValidPhone, ORDER_STATUS_LABELS, PAYMENT_STATUS_LABELS } from '../utils/format';
 
 const inputCls = 'w-full px-3.5 py-2.5 rounded-lg bg-surface border border-border-subtle text-sm focus:outline-none focus:border-primary';
@@ -46,8 +47,10 @@ const fe = (err, key) => {
 
 /* ----------------------------- signed-out portal ----------------------------- */
 
-function AuthPortal({ view, token, setView }) {
+function AuthPortal({ view, token, setView, next = '' }) {
   const { showToast } = useApp();
+  const routerNavigate = useNavigate();
+  const done = (message) => () => { showToast(message); if (next) routerNavigate(next, { replace: true }); };
   const login = useLoginMutation();
   const register = useRegisterMutation();
   const forgot = useForgotPasswordMutation();
@@ -71,7 +74,8 @@ function AuthPortal({ view, token, setView }) {
       if (!f.password) errs.password = 'Enter your password.';
       setLocal(errs);
       if (Object.keys(errs).length) return;
-      login.mutate({ identifier: f.identifier.trim(), password: f.password }, { onSuccess: () => showToast('Welcome back!') });
+      // mutateAsync, not mutate(..., { onSuccess }): signing in unmounts this portal, and per-call callbacks never run for an unmounted component.
+      login.mutateAsync({ identifier: f.identifier.trim(), password: f.password }).then(done('Welcome back!')).catch(() => {});
     } else if (view === 'register') {
       if (f.name.trim().length < 2) errs.name = 'Enter your full name.';
       if (!isValidEmail(f.email)) errs.email = 'Enter a valid email.';
@@ -79,7 +83,7 @@ function AuthPortal({ view, token, setView }) {
       if (f.password.length < 8) errs.password = 'Use at least 8 characters.';
       setLocal(errs);
       if (Object.keys(errs).length) return;
-      register.mutate({ name: f.name.trim(), email: f.email.trim(), phone: f.phone.trim(), password: f.password, role: 'customer' }, { onSuccess: () => showToast('Account created. Welcome!') });
+      register.mutateAsync({ name: f.name.trim(), email: f.email.trim(), phone: f.phone.trim(), password: f.password, role: 'customer' }).then(done('Account created. Welcome!')).catch(() => {});
     } else if (view === 'forgot') {
       if (f.identifier.trim().length < 3) { setLocal({ identifier: 'Enter your email or phone.' }); return; }
       setLocal({});
@@ -563,7 +567,7 @@ export default function AccountPage() {
   if (authStatus === 'loading' || authStatus === 'unknown') return <LoadingBlock label="Loading your account…" className="py-40" />;
   if (!isAuthenticated) {
     const changeView = (v) => { setView(v); if (params.has('token')) setParams({}, { replace: true }); };
-    return <AuthPortal view={view} token={token} setView={changeView} />;
+    return <AuthPortal view={view} token={token} setView={changeView} next={safeNext(params.get('next'))} />;
   }
   const setTab = (t) => setParams(t === 'overview' ? {} : { tab: t });
   return <Dashboard tab={TABS.some((t) => t.id === tab) ? tab : 'overview'} setTab={setTab} />;

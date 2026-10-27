@@ -70,11 +70,13 @@ const detail = (p) => ({ ...dview(p), readiness: { ready: summaryOf(p._id).skuCo
   await page.getByPlaceholder('Garment name...').fill('Court Sneaker');
   await page.getByRole('button', { name: /Next Step/ }).click();
   await page.locator('select option[value="c1"]').first().waitFor({ state: 'attached' });
-  await page.getByRole('dialog').getByRole('combobox').selectOption('c1');
+  await page.getByRole('dialog').locator('select:not([data-testid="audience-select"])').selectOption('c1');
+  await page.getByTestId('audience-select').selectOption('unisex');
   await page.waitForTimeout(150);
   await page.getByRole('button', { name: /Next Step/ }).click(); // -> Images
   await page.getByRole('button', { name: /Save draft/ }).click(); // creates the draft, -> Colour variants
   await page.waitForTimeout(400);
+  ok('Unisex audience chosen in the editor is sent on create', db.products[0] && db.products[0].audience === 'unisex', JSON.stringify(db.products[0] && db.products[0].audience));
   ok('draft product created via POST /admin/products', db.products.length === 1, (await page.locator('[role=dialog], body').last().innerText()).replace(/\s+/g,' ').slice(0,400));
 
   // Two colour variants.
@@ -152,7 +154,7 @@ const detail = (p) => ({ ...dview(p), readiness: { ready: summaryOf(p._id).skuCo
   await page.getByPlaceholder('Garment name...').fill('Failing Shoe');
   await page.getByRole('button', { name: /Next Step/ }).click();
   await page.locator('select option[value="c1"]').first().waitFor({ state: 'attached' });
-  await page.getByRole('dialog').getByRole('combobox').selectOption('c1');
+  await page.getByRole('dialog').locator('select:not([data-testid="audience-select"])').selectOption('c1');
   await page.getByRole('button', { name: /Next Step/ }).click();
   await page.getByRole('button', { name: /Save draft/ }).click();
   await page.waitForTimeout(300);
@@ -184,7 +186,7 @@ const detail = (p) => ({ ...dview(p), readiness: { ready: summaryOf(p._id).skuCo
   await page.getByPlaceholder('Garment name...').fill('Auto Sku Shoe');
   await page.getByRole('button', { name: /Next Step/ }).click();
   await page.locator('select option[value="c1"]').first().waitFor({ state: 'attached' });
-  await page.getByRole('dialog').getByRole('combobox').selectOption('c1');
+  await page.getByRole('dialog').locator('select:not([data-testid="audience-select"])').selectOption('c1');
   await page.getByRole('button', { name: /Next Step/ }).click();
   await page.getByRole('button', { name: /Save draft/ }).click();
   await page.waitForTimeout(300);

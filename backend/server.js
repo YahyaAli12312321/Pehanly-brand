@@ -1,6 +1,7 @@
 'use strict';
 const { config } = require('./src/config/env');
 const logger = require('./src/config/logger');
+const { cookieWarnings } = require('./src/utils/cookiePolicy');
 const { connectDBWithRetry, disconnectDB } = require('./src/config/db');
 const { createApp } = require('./src/app');
 const { policy } = require('./src/middleware/originGuard');
@@ -14,7 +15,15 @@ async function start() {
   server = app.listen(config.port, () => {
     // Printing the effective origins makes a stale CORS_ORIGINS (e.g. a variable exported in the shell,
     // which overrides .env) visible immediately instead of surfacing later as a 403.
-    logger.info({ port: config.port, env: config.env, corsOrigins: policy.list(), clientUrl: config.clientUrl }, 'PEHAN LY API listening');
+    logger.info({ port: config.port, env: config.env, corsOrigins: policy.list(), clientUrl: config.clientUrl, cookieSameSite: config.auth.cookieSameSite, cookieSecure: config.auth.cookieSecure }, 'PEHAN LY API listening');
+    for (const warning of cookieWarnings({
+      isProd: config.env === 'production',
+      sameSite: config.auth.cookieSameSite,
+      corsOrigins: policy.list(),
+      apiUrl: process.env.API_PUBLIC_URL || process.env.RENDER_EXTERNAL_URL,
+    })) {
+      logger.warn(warning);
+    }
   });
 }
 

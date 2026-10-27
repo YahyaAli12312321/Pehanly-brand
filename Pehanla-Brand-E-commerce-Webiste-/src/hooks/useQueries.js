@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tansta
 import { catalogApi, reviewsApi, contentApi } from '../services/catalogApi';
 import { authApi, accountApi, ordersApi, checkoutApi, returnsApi } from '../services/accountApi';
 import { wholesaleApi, manufacturingApi, printingApi, quotesApi, mediaApi } from '../services/b2bApi';
-import { onUnauthorized } from '../services/http';
+import { ApiError, onUnauthorized } from '../services/http';
 import { useAppStore } from '../store/useAppStore';
 
 const MIN = 60 * 1000;
@@ -47,10 +47,22 @@ export function useSessionBootstrap() {
 
   useEffect(() => {
     let cancelled = false;
-    authApi
-      .me()
-      .then((data) => !cancelled && setUser(data?.user || null))
-      .catch(() => !cancelled && clearSession());
+    // Only a 401/403 means "not signed in". A cold-starting or briefly unavailable API (network error,
+    // timeout, 5xx) must not look like a sign-out, so those are retried before giving up.
+    const restore = async () => {
+      for (let attempt = 0; attempt < SESSION_RESTORE_ATTEMPTS; attempt += 1) {
+        try {
+          const data = await authApi.me();
+          if (!cancelled) setUser(data?.user || null);
+          return;
+        } catch (err) {
+          if (cancelled) return;
+          if (!isTransientSessionError(err) || attempt === SESSION_RESTORE_ATTEMPTS - 1) return clearSession();
+          await new Promise((resolve) => setTimeout(resolve, SESSION_RESTORE_DELAYS[attempt]));
+        }
+      }
+    };
+    restore();
     const off = onUnauthorized(() => {
       clearSession();
       queryClient.removeQueries({ queryKey: ['account'] });
@@ -63,10 +75,34 @@ export function useSessionBootstrap() {
   }, [setUser, clearSession, queryClient]);
 }
 
+export const SESSION_RESTORE_ATTEMPTS = 4;
+export const SESSION_RESTORE_DELAYS = [1500, 3000, 6000];
+/** Network failure, timeout or 5xx: says nothing about whether the customer is signed in. */
+export const isTransientSessionError = (err) => !err?.status || err.status >= 500 || err.status === 429;
+
+/** Signs in, then confirms the browser really kept the HttpOnly session cookie (GET /auth/me). */
+export async function loginAndVerify(body) {
+  const data = await authApi.login(body);
+  try {
+    const me = await authApi.me();
+    return { user: me?.user || data?.user || null };
+  } catch (err) {
+    if (err?.status === 401 || err?.status === 403) {
+      throw new ApiError({
+        message:
+          'You were signed in, but your browser did not keep the session. Allow cookies for this site (and, in private or strict-privacy modes, allow third-party cookies), then try again. If it keeps happening, contact support.',
+        status: 401,
+        code: 'SESSION_NOT_PERSISTED',
+      });
+    }
+    return { user: data?.user || null }; // /auth/me unreachable for another reason: trust the successful login
+  }
+}
+
 export function useLoginMutation() {
   const setUser = useAppStore((s) => s.setUser);
   return useMutation({
-    mutationFn: (body) => authApi.login(body),
+    mutationFn: (body) => loginAndVerify(body),
     onSuccess: (data) => setUser(data?.user || null),
   });
 }
