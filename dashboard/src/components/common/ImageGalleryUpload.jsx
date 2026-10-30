@@ -10,13 +10,14 @@ const ACCEPT = 'image/jpeg,image/png,image/webp';
  * Multi-image field backed by POST /media. value: [{ url, publicId, alt }]; first image = primary.
  * Files upload one by one; failures are listed without losing the ones that succeeded.
  */
-export const ImageGalleryUpload = ({ value = [], onChange, purpose, max = 10, adjust = false, disabled = false, columns = 'grid-cols-3 sm:grid-cols-5', aspect = 'aspect-[3/4]' }) => {
+export const ImageGalleryUpload = ({ value = [], onChange, purpose, max = 10, adjust = false, single = false, disabled = false, columns = 'grid-cols-3 sm:grid-cols-5', aspect = 'aspect-[3/4]' }) => {
   const inputRef = useRef(null);
   const [busy, setBusy] = useState(null); // { done, total, percent }
   const [problems, setProblems] = useState([]);
   const [crop, setCrop] = useState(null); // { file, index, total, resolve }
   const maxMb = MEDIA_PURPOSES[purpose]?.maxMb ?? 8;
-  const room = Math.max(0, max - value.length);
+  // single: exactly one image; choosing a new file REPLACES the current one (after the new upload succeeded).
+  const room = single ? 1 : Math.max(0, max - value.length);
 
   const pick = async (e) => {
     const files = Array.from(e.target.files || []);
@@ -30,12 +31,12 @@ export const ImageGalleryUpload = ({ value = [], onChange, purpose, max = 10, ad
       else accepted.push(f);
     }
     if (accepted.length > room) {
-      issues.push(`Only ${room} more image${room === 1 ? '' : 's'} allowed (max ${max}).`);
+      issues.push(single ? 'Only one image is allowed here. The first valid file was used; the others were ignored.' : `Only ${room} more image${room === 1 ? '' : 's'} allowed (max ${max}).`);
       accepted.length = room;
     }
     setProblems(issues);
     if (!accepted.length) return;
-    let current = [...value];
+    let current = single ? [] : [...value];
     for (let i = 0; i < accepted.length; i += 1) {
       let file = accepted[i];
       if (adjust) {
@@ -87,12 +88,12 @@ export const ImageGalleryUpload = ({ value = [], onChange, purpose, max = 10, ad
           className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#00130d] text-white text-xs font-semibold rounded-lg hover:bg-slate-800 transition-colors disabled:opacity-50"
         >
           {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <ImagePlus className="w-4 h-4" />}
-          {busy ? `Uploading ${busy.done + 1}/${busy.total} · ${busy.percent}%` : 'Upload images'}
+          {busy ? `Uploading ${busy.done + 1}/${busy.total} · ${busy.percent}%` : single ? (value.length ? 'Replace image' : 'Upload image') : 'Upload images'}
         </button>
         <span className="text-[11px] text-slate-500">
-          {value.length}/{max} · JPEG, PNG or WebP · up to {maxMb} MB each
+          {single ? 'One main image' : `${value.length}/${max}`} · JPEG, PNG or WebP · up to {maxMb} MB{single ? '' : ' each'}
         </span>
-        <input ref={inputRef} type="file" multiple accept={ACCEPT} className="hidden" onChange={pick} />
+        <input ref={inputRef} type="file" multiple={!single} accept={ACCEPT} className="hidden" onChange={pick} />
       </div>
       {problems.length > 0 && (
         <ul className="text-xs text-rose-600 font-medium space-y-0.5" role="alert">
@@ -100,12 +101,12 @@ export const ImageGalleryUpload = ({ value = [], onChange, purpose, max = 10, ad
         </ul>
       )}
       {value.length > 0 && (
-        <div className={`grid ${columns} gap-3`}>
+        <div className={`grid ${single ? 'grid-cols-1 max-w-[16rem]' : columns} gap-3`}>
           {value.map((img, idx) => (
             <div key={img.publicId || img.url} className={`relative group rounded-lg overflow-hidden border border-slate-200 ${aspect} bg-slate-100`}>
-              <img src={img.url} alt={img.alt || `Image ${idx + 1}`} className="w-full h-full object-cover" />
+              <img src={img.url} alt={img.alt || `Image ${idx + 1}`} className={`w-full h-full ${single ? 'object-contain' : 'object-cover'}`} />
               <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity flex flex-col justify-between p-2">
-                <span className="text-[10px] text-white bg-black/60 px-1.5 py-0.5 rounded self-start">{idx === 0 ? 'Primary' : `#${idx + 1}`}</span>
+                <span className="text-[10px] text-white bg-black/60 px-1.5 py-0.5 rounded self-start">{idx === 0 ? (single ? 'Main image' : 'Primary') : `#${idx + 1}`}</span>
                 <div className="flex items-center justify-between gap-1">
                   {idx !== 0 ? (
                     <button type="button" disabled={disabled} onClick={() => makePrimary(idx)} className="p-1 bg-white/90 text-slate-800 rounded hover:bg-white" title="Make primary">
@@ -120,6 +121,9 @@ export const ImageGalleryUpload = ({ value = [], onChange, purpose, max = 10, ad
             </div>
           ))}
         </div>
+      )}
+      {single && value.length > 0 && (
+        <button type="button" disabled={disabled || !!busy} onClick={() => remove(0)} className="text-xs font-semibold text-rose-600 hover:text-rose-700 underline disabled:opacity-50">Remove image</button>
       )}
     </div>
   );

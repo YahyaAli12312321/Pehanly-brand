@@ -15,7 +15,7 @@ async function start() {
   server = app.listen(config.port, () => {
     // Printing the effective origins makes a stale CORS_ORIGINS (e.g. a variable exported in the shell,
     // which overrides .env) visible immediately instead of surfacing later as a 403.
-    logger.info({ port: config.port, env: config.env, corsOrigins: policy.list(), clientUrl: config.clientUrl, cookieSameSite: config.auth.cookieSameSite, cookieSecure: config.auth.cookieSecure }, 'PEHAN LY API listening');
+    logger.info({ port: config.port, env: config.env, corsOrigins: policy.list(), clientUrl: config.clientUrl, cookieSameSite: config.auth.cookieSameSite, cookieSameSiteSource: config.auth.cookieSameSiteSource, cookieSecure: config.auth.cookieSecure }, 'PEHAN LY API listening');
     for (const warning of cookieWarnings({
       isProd: config.env === 'production',
       sameSite: config.auth.cookieSameSite,

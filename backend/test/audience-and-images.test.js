@@ -127,9 +127,12 @@ const imageIssues = (schema, n) => (schema.safeParse({ generalImages: media(n) }
 
 test('image limit constant is 25', () => assert.equal(pv().PRODUCT_IMAGE_LIMIT, 25));
 
-test('create accepts 25 images and rejects 26', () => {
-  assert.equal(imageIssues(pv().createProductBody, 25).length, 0);
-  assert.ok(imageIssues(pv().createProductBody, 26).length > 0);
+test('create accepts exactly 1 main image and rejects 2 (create-only limit)', () => {
+  assert.equal(pv().PRODUCT_CREATE_IMAGE_LIMIT, 1);
+  assert.equal(imageIssues(pv().createProductBody, 0).length, 0);
+  assert.equal(imageIssues(pv().createProductBody, 1).length, 0);
+  assert.ok(imageIssues(pv().createProductBody, 2).length > 0);
+  assert.ok(imageIssues(pv().createProductBody, 25).length > 0);
 });
 
 test('update accepts 25 images and rejects 26 (create and edit agree)', () => {

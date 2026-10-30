@@ -1951,6 +1951,12 @@
                       "value": "true",
                       "disabled": true,
                       "description": "optional - enum(true | false)"
+                    },
+                    {
+                      "key": "parentOnly",
+                      "value": "true",
+                      "disabled": true,
+                      "description": "optional - enum(true | false)"
                     }
                   ],
                   "variable": []
@@ -2855,6 +2861,12 @@
                     },
                     {
                       "key": "featured",
+                      "value": "true",
+                      "disabled": true,
+                      "description": "optional - enum(true | false)"
+                    },
+                    {
+                      "key": "newArrival",
                       "value": "true",
                       "disabled": true,
                       "description": "optional - enum(true | false)"

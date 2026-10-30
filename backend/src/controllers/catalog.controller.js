@@ -7,7 +7,7 @@ const { success } = require('../utils/apiResponse');
 
 exports.categories = asyncHandler(async (req, res) => {
   const query = req.validated.query;
-  const key = `catalog:categories:${query.audience || '-'}:${query.homeOnly ? 'home' : 'all'}`;
+  const key = `catalog:categories:${query.audience || '-'}:${query.homeOnly ? 'home' : 'all'}:${query.parentOnly ? 'parents' : 'tree'}`;
 
   const data = await cache.remember(key, 60, () => catalogService.listCategories(query));
   return success(res, { data });

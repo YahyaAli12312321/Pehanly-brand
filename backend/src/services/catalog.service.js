@@ -109,10 +109,11 @@ async function activeCategoryIds() {
   return rows.map((r) => r._id);
 }
 
-async function listCategories({ audience, homeOnly } = {}) {
+async function listCategories({ audience, homeOnly, parentOnly } = {}) {
   const filter = { isActive: true };
   if (audience) filter.audience = ['men', 'women'].includes(audience) ? { $in: [audience, 'unisex'] } : audience;
   if (homeOnly) filter.showOnHome = true;
+  if (parentOnly) filter.parentCategory = null; // matches null AND missing: schema-based, no names or ids
 
   const rows = await Category.find(filter).sort({ sortOrder: 1, name: 1 }).lean();
 
@@ -149,6 +150,9 @@ async function listProducts(q) {
   }
 
   if (q.featured !== undefined) filter.isFeatured = q.featured;
+  // Strict flag match: a product is a New Arrival only when an admin set isNewArrival=true (never inferred from createdAt).
+  if (q.newArrival === true) filter.isNewArrival = true;
+  else if (q.newArrival === false) filter.isNewArrival = { $ne: true };
 
   if (q.audience) {
     const cond = await audienceCondition(q.audience, categoryService);

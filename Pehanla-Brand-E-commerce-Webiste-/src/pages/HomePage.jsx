@@ -67,7 +67,7 @@ function Hero() {
                 {slide.subtitle && <p className="font-body text-base lg:text-lg text-surface-container-high max-w-xl leading-relaxed">{slide.subtitle}</p>}
                 <div className="flex flex-wrap items-center gap-4 pt-2">
                   <CtaLink cta={slide.cta} className={btnPrimary} onClick={() => !slide.fallback && slide.id && contentApi.bannerClick(slide.id)} />
-                  {slide.fallback && <Link to="/shop?sort=newest" className={btnSecondary}>New Arrivals</Link>}
+                  {slide.fallback && <Link to="/shop?newArrival=true" className={btnSecondary}>New Arrivals</Link>}
                 </div>
               </div>
             </div>
@@ -176,8 +176,10 @@ function RetailEntry() {
 }
 
 function Categories() {
-  const { data: categories } = useCategoriesQuery();
-  if (!categories?.length) return null;
+  // Top-level categories only (no parentCategory); sub-categories stay reachable inside their parent's page.
+  const { data } = useCategoriesQuery({ parentOnly: true });
+  const categories = (data || []).filter((c) => !c.parentId);
+  if (!categories.length) return null;
   return (
     <section aria-labelledby="cat-h" className="w-full max-w-7xl mx-auto px-4 sm:px-8 py-12 border-t border-border-subtle">
       <div className="flex items-end justify-between mb-8">
@@ -206,14 +208,15 @@ function Categories() {
 
 function NewArrivals() {
   const { currency } = useCurrency();
-  const { data } = useProductsQuery({ sort: 'newest', limit: 4 });
-  const items = data?.items || [];
+  // Only products an admin explicitly flagged as New Arrival (the backend filters on isNewArrival === true).
+  const { data } = useProductsQuery({ newArrival: true, sort: 'newest', limit: 4 });
+  const items = (data?.items || []).filter((p) => p.isNewArrival === true);
   if (!items.length) return null;
   return (
     <section aria-labelledby="new-h" className="w-full max-w-7xl mx-auto px-4 sm:px-8 py-12 border-t border-border-subtle">
       <div className="flex items-end justify-between mb-8">
         <h2 id="new-h" className="font-headline font-bold text-2xl lg:text-3xl text-on-surface">New Arrivals</h2>
-        <Link to="/shop" className="text-xs font-bold uppercase tracking-wider text-primary underline">Shop all</Link>
+        <Link to="/shop?newArrival=true" className="text-xs font-bold uppercase tracking-wider text-primary underline">Shop all</Link>
       </div>
       <ul className="grid grid-cols-2 lg:grid-cols-4 gap-5">
         {items.map((p) => {

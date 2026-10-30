@@ -19,6 +19,8 @@ exports.productsQuery = z
     // men => men + unisex, women => women + unisex, unisex => unisex only
     audience: z.enum(['men', 'women', 'unisex']).optional(),
     featured: z.enum(['true', 'false']).transform((v) => v === 'true').optional(),
+    // true => only products whose isNewArrival flag is explicitly true; false => everything else (flag false/unset)
+    newArrival: z.enum(['true', 'false']).transform((v) => v === 'true').optional(),
     sort: z.enum(['newest', 'price_asc', 'price_desc', 'name']).default('newest'),
     // Only affects price sorting (which price to sort by). Omitted = PKR.
     currency: z.enum(['PKR', 'USD']).optional(),
@@ -31,5 +33,7 @@ exports.categoriesQuery = z
   .object({
     audience: z.string().trim().toLowerCase().max(40).optional(),
     homeOnly: z.enum(['true', 'false']).transform((v) => v === 'true').optional(),
+    // true => top-level (parent) categories only: those with no parentCategory
+    parentOnly: z.enum(['true', 'false']).transform((v) => v === 'true').optional(),
   })
   .strict();

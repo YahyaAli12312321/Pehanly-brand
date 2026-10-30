@@ -6,8 +6,12 @@ const objectId = z.string().regex(/^[a-f\d]{24}$/i, 'Invalid id');
 const bool = z.enum(['true', 'false']).transform((v) => v === 'true');
 const media = z.object({ url: mediaUrl(500), publicId: z.string().max(200).optional(), alt: z.string().max(160).optional(), sortOrder: z.number().int().min(0).optional() }).strict();
 /** Max gallery images per product (create and edit share this one constant; variants keep their own limit). */
+// Product CREATION takes exactly one main image (shop-card thumbnail). Editing keeps the full gallery limit,
+// so existing multi-image products are untouched.
+const PRODUCT_CREATE_IMAGE_LIMIT = 1;
 const PRODUCT_IMAGE_LIMIT = 25;
 exports.PRODUCT_IMAGE_LIMIT = PRODUCT_IMAGE_LIMIT;
+exports.PRODUCT_CREATE_IMAGE_LIMIT = PRODUCT_CREATE_IMAGE_LIMIT;
 const money = z.number().min(0).max(100_000_000);
 
 const wholesaleTier = z.object({
@@ -51,7 +55,7 @@ const productFields = {
   seo,
 };
 
-exports.createProductBody = z.object(productFields).partial({ audience: true, slug: true, shortDescription: true, description: true, generalImages: true, isFeatured: true, isNewArrival: true, isBestSeller: true, wholesale: true, seo: true }).strict();
+exports.createProductBody = z.object({ ...productFields, generalImages: z.array(media).max(PRODUCT_CREATE_IMAGE_LIMIT) }).partial({ audience: true, slug: true, shortDescription: true, description: true, generalImages: true, isFeatured: true, isNewArrival: true, isBestSeller: true, wholesale: true, seo: true }).strict();
 exports.updateProductBody = z.object(productFields).partial().strict().refine((b) => Object.keys(b).length > 0, 'Nothing to update');
 exports.statusBody = z.object({ status: z.enum(['draft', 'active', 'inactive']) }).strict();
 exports.bulkBody = z.object({ ids: z.array(objectId).min(1).max(100), action: z.enum(['activate', 'deactivate', 'feature', 'unfeature']) }).strict();

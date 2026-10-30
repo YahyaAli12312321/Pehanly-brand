@@ -443,6 +443,7 @@ Optional fields: `slug`, `description`, `image`, `parentCategory`, `audience`, `
 - **Query params:**
   - `audience` = `Sample text` (optional - string, optional)
   - `homeOnly` = `true` (optional - enum(true | false), optional)
+  - `parentOnly` = `true` (optional - enum(true | false), optional)
 
 ## Product Variants & SKUs
 
@@ -596,6 +597,7 @@ Optional fields: `slug`, `shortDescription`, `description`, `generalImages`, `au
   - `search` = `sample` (optional - string, optional)
   - `audience` = `men` (optional - enum(men | women | unisex), optional)
   - `featured` = `true` (optional - enum(true | false), optional)
+  - `newArrival` = `true` (optional - enum(true | false), optional)
   - `sort` = `newest` (optional - enum(newest | price_asc | price_desc | name), optional)
   - `currency` = `PKR` (optional - enum(PKR | USD), optional)
   - `page` = `1` (optional - number)

@@ -31,3 +31,21 @@ test('without a known API URL, production + lax + a public website origin gets a
   assert.equal(w.length, 1);
   assert.match(w[0], /API_PUBLIC_URL/);
 });
+
+const { resolveSameSite } = require(path.join(__dirname, '..', 'src', 'utils', 'cookiePolicy.js'));
+
+test('resolveSameSite: explicit value always wins', () => {
+  assert.equal(resolveSameSite({ explicit: 'lax', isProd: true, corsOrigins: ['https://a.vercel.app'], apiUrl: 'https://b.onrender.com' }), 'lax');
+  assert.equal(resolveSameSite({ explicit: 'strict', isProd: false, corsOrigins: [], apiUrl: '' }), 'strict');
+});
+
+test('resolveSameSite: production Vercel -> Render is cross-site => none', () => {
+  assert.equal(resolveSameSite({ isProd: true, corsOrigins: ['https://pehanly-brand-2qog.vercel.app'], apiUrl: 'https://pehanly-brand.onrender.com' }), 'none');
+});
+
+test('resolveSameSite: same-site custom domain, localhost, non-production and unknown API URL stay lax', () => {
+  assert.equal(resolveSameSite({ isProd: true, corsOrigins: ['https://pehanly.com', 'https://admin.pehanly.com'], apiUrl: 'https://api.pehanly.com' }), 'lax');
+  assert.equal(resolveSameSite({ isProd: true, corsOrigins: ['http://localhost:5173'], apiUrl: 'https://pehanly-brand.onrender.com' }), 'lax');
+  assert.equal(resolveSameSite({ isProd: false, corsOrigins: ['https://a.vercel.app'], apiUrl: 'https://b.onrender.com' }), 'lax');
+  assert.equal(resolveSameSite({ isProd: true, corsOrigins: ['https://a.vercel.app'], apiUrl: '' }), 'lax');
+});

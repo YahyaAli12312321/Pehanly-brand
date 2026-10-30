@@ -15,7 +15,7 @@ import { LoadingSkeleton } from "../common/LoadingSkeleton";
 import { VariantCard } from "./VariantCard";
 import { countUnsaved, isUnsaved, newVariantDraft, validateVariant, variantToDraft } from "./variantDraft";
 
-import { PRODUCT_IMAGE_LIMIT, AUDIENCE_OPTIONS, imageCountError } from "../../lib/productLimits";
+import { AUDIENCE_OPTIONS, imageCountError, imageLimitFor } from "../../lib/productLimits";
 
 const EDITOR_STEPS = ["Basic Info", "Category & Flags", "Images", "Color Variants", "Sizes & SKUs", "Wholesale & Pricing", "SEO & Publish"];
 const input = (bad) => `w-full text-xs px-3 py-2 bg-slate-50 border rounded-lg focus:ring-1 focus:ring-[#00130d] outline-none ${bad ? "border-rose-400" : "border-slate-200"}`;
@@ -57,6 +57,9 @@ export const ProductEditor = ({ isOpen, productId, canManage, onClose }) => {
   const addToast = useToastStore((s) => s.addToast);
   const [step, setStep] = useState(0);
   const [currentId, setCurrentId] = useState(productId);
+  // Opened with no product = a creation session (stays true after the first draft save). One main image then; editing keeps the gallery.
+  const isCreation = !productId;
+  const imageLimit = imageLimitFor(isCreation);
   const [form, setForm] = useState(EMPTY);
   const [slugTouched, setSlugTouched] = useState(false);
   const [formErrors, setFormErrors] = useState({ fields: {}, general: "" });
@@ -117,7 +120,7 @@ export const ProductEditor = ({ isOpen, productId, canManage, onClose }) => {
     if (form.name.trim().length < 2) f.name = "Name must be at least 2 characters";
     if (form.slug && !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(form.slug)) f.slug = "Use lowercase letters, numbers and hyphens";
     if (!form.category) f.category = "Choose a category";
-    { const e = imageCountError(form.generalImages); if (e) f.generalImages = e; }
+    { const e = imageCountError(form.generalImages, imageLimit); if (e) f.generalImages = e; }
     if (form.shortDescription.length > 300) f.shortDescription = "Max 300 characters";
     if (form.wholesaleEnabled && !(Number(form.wholesaleMoq) >= 1)) f["wholesale.moq"] = "MOQ must be at least 1";
     if (form.wholesaleEnabled) {
@@ -368,10 +371,12 @@ export const ProductEditor = ({ isOpen, productId, canManage, onClose }) => {
 
         {step === 2 && <div className="space-y-3">
             <div>
-              <h4 className="text-xs font-semibold text-slate-900">General product images</h4>
-              <p className="text-[11px] text-slate-500">Uploaded through the media library (max {PRODUCT_IMAGE_LIMIT}). Each image can be cropped to Square, Portrait or Landscape first. The first image is the primary thumbnail. Colour-specific images are added under Color Variants.</p>
+              <h4 className="text-xs font-semibold text-slate-900">{isCreation ? "Main product image" : "General product images"}</h4>
+              <p className="text-[11px] text-slate-500">{isCreation
+                ? "Upload one image. It becomes the product's main image and the thumbnail on Shop page product cards. You can crop it first, replace it or remove it before saving. More images and colour-specific images can be added afterwards by editing the product."
+                : <>Uploaded through the media library (max {imageLimit}). Each image can be cropped to Square, Portrait or Landscape first. The first image is the primary thumbnail. Colour-specific images are added under Color Variants.</>}</p>
             </div>
-            <ImageGalleryUpload value={form.generalImages} onChange={(generalImages) => set({ generalImages })} purpose="product_image" max={PRODUCT_IMAGE_LIMIT} adjust disabled={!canManage} />
+            <ImageGalleryUpload value={form.generalImages} onChange={(generalImages) => set({ generalImages })} purpose="product_image" max={imageLimit} single={isCreation} adjust disabled={!canManage} />
             {fe.generalImages && <span className="text-xs text-rose-600">{fe.generalImages}</span>}
           </div>}
 

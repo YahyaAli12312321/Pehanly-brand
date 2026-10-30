@@ -37,6 +37,7 @@ export default function ShopPage() {
   const q = (params.get('q') || '').trim();
   const sort = SORT_OPTIONS.some((o) => o.value === params.get('sort')) ? params.get('sort') : 'newest';
   const audience = ['men', 'women'].includes(params.get('audience')) ? params.get('audience') : '';
+  const newArrival = params.get('newArrival') === 'true';
   const page = Math.max(1, Number.parseInt(params.get('page') || '1', 10) || 1);
 
   const [searchInput, setSearchInput] = useState(q);
@@ -58,6 +59,7 @@ export default function ShopPage() {
   const { data, isLoading, isError, error, refetch, isPlaceholderData } = useProductsQuery({
     category: categorySlug,
     audience: audience || undefined, // Men/Women also return Unisex products (decided by the backend)
+    newArrival: newArrival ? true : undefined,
     search: q || undefined,
     sort,
     page,
@@ -106,10 +108,10 @@ export default function ShopPage() {
 
   // ----- SEO: filters/sort/search must not create indexable duplicates -----
   const basePath = categorySlug ? `/shop/${categorySlug}` : '/shop';
-  const isFilteredView = Boolean(q) || Boolean(audience) || sort !== 'newest';
+  const isFilteredView = Boolean(q) || Boolean(audience) || newArrival || sort !== 'newest';
   const canonicalPath = page > 1 && !isFilteredView ? `${basePath}?page=${page}` : basePath;
   const audienceLabel = audience === 'men' ? 'Men' : audience === 'women' ? 'Women' : '';
-  const heading = q ? `Results for “${q}”` : activeCategory?.name ? (audienceLabel ? `${audienceLabel} · ${activeCategory.name}` : activeCategory.name) : categorySlug ? 'Collection' : audienceLabel || 'Shop All';
+  const heading = q ? `Results for “${q}”` : newArrival && !categorySlug && !audienceLabel ? 'New Arrivals' : activeCategory?.name ? (audienceLabel ? `${audienceLabel} · ${activeCategory.name}` : activeCategory.name) : categorySlug ? 'Collection' : audienceLabel || 'Shop All';
   const metaTitle = q ? `Search: ${q}` : activeCategory?.name ? `${activeCategory.name}${page > 1 ? ` - Page ${page}` : ''}` : `Shop Clothing${page > 1 ? ` - Page ${page}` : ''}`;
   const metaDescription =
     activeCategory?.description ||
@@ -199,9 +201,17 @@ export default function ShopPage() {
             </button>
           </form>
 
-          {(refinementCount > 0 || q || categorySlug || audience) && (
+          {(refinementCount > 0 || q || categorySlug || audience || newArrival) && (
             <div className="mt-4 flex flex-wrap items-center gap-2 text-xs">
               <span className="text-[10px] uppercase font-bold tracking-wider text-muted mr-1">Active Filters:</span>
+              {newArrival && (
+                <span className="inline-flex items-center gap-1.5 pl-3 pr-2 py-1 rounded-full bg-primary text-white text-[11px]">
+                  Showing: <strong>New Arrivals</strong>
+                  <button type="button" aria-label="Remove new arrivals filter" onClick={() => updateParams({ newArrival: '' })} className="hover:text-accent cursor-pointer">
+                    <span className="material-symbols-outlined text-sm leading-none" aria-hidden="true">close</span>
+                  </button>
+                </span>
+              )}
               {audience && (
                 <span className="inline-flex items-center gap-1.5 pl-3 pr-2 py-1 rounded-full bg-primary text-white text-[11px]">
                   Shopping for: <strong>{audienceLabel}</strong>

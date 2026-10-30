@@ -45,7 +45,12 @@ const schema = z.object({
   SESSION_DAYS: z.coerce.number().int().min(1).max(90).default(7),
   // Lifetime of a session when the user ticks "Remember me" at sign-in.
   REMEMBER_ME_DAYS: z.coerce.number().int().min(1).max(90).default(30),
-  COOKIE_SAMESITE: z.enum(['lax', 'strict', 'none']).default('lax'),
+  // Unset = automatic: 'none' in production when the website origin is a different site than this API (Vercel + Render),
+  // otherwise 'lax'. Set explicitly to override.
+  COOKIE_SAMESITE: z.enum(['lax', 'strict', 'none']).optional(),
+  // This API's public URL; used only to decide whether the website is cross-site. Render sets RENDER_EXTERNAL_URL itself.
+  API_PUBLIC_URL: z.string().optional(),
+  RENDER_EXTERNAL_URL: z.string().optional(),
   COOKIE_DOMAIN: z.string().optional(),
   PASSWORD_RESET_MINUTES: z.coerce.number().int().min(5).max(180).default(30),
 
@@ -104,6 +109,8 @@ function dropBlankValues(source) {
   return out;
 }
 
+const { resolveSameSite } = require('../utils/cookiePolicy');
+
 function loadEnv(source = process.env) {
   const cleaned = dropBlankValues(source);
 
@@ -121,6 +128,8 @@ function loadEnv(source = process.env) {
 
   const corsOrigins = e.CORS_ORIGINS.split(',').map((o) => o.trim().replace(/\/$/, '')).filter(Boolean);
   const isProd = e.NODE_ENV === 'production';
+  const apiUrl = e.API_PUBLIC_URL || e.RENDER_EXTERNAL_URL || '';
+  const cookieSameSite = resolveSameSite({ explicit: e.COOKIE_SAMESITE, isProd, corsOrigins, apiUrl });
 
   if (corsOrigins.length === 0) fail(['  - CORS_ORIGINS must contain at least one origin']);
   if (corsOrigins.includes('*')) fail(['  - CORS_ORIGINS must not contain "*" (credentials are used)']);
@@ -255,9 +264,11 @@ function loadEnv(source = process.env) {
       sessionDays: e.SESSION_DAYS,
       rememberDays: e.REMEMBER_ME_DAYS,
       cookieName: 'pl_session',
-      cookieSameSite: e.COOKIE_SAMESITE,
+      cookieSameSite,
+      cookieSameSiteSource: e.COOKIE_SAMESITE ? 'env' : 'auto',
+      apiPublicUrl: apiUrl || undefined,
       cookieDomain: e.COOKIE_DOMAIN || undefined,
-      cookieSecure: isProd || e.COOKIE_SAMESITE === 'none',
+      cookieSecure: isProd || cookieSameSite === 'none',
       bcryptRounds: e.NODE_ENV === 'test' ? 4 : 12,
       resetMinutes: e.PASSWORD_RESET_MINUTES,
     },

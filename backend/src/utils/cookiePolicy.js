@@ -60,4 +60,20 @@ function cookieWarnings({ isProd, sameSite, corsOrigins = [], apiUrl }) {
   ];
 }
 
-module.exports = { cookieWarnings, siteOf, hostnameOf };
+/**
+ * Chooses the pl_session SameSite value. An explicit COOKIE_SAMESITE always wins. When it is unset:
+ *  - production + a known API URL + at least one website origin on a different site => 'none' (Secure is enforced), because
+ *    SameSite=Lax cookies are dropped on cross-site fetch/XHR (Vercel -> Render): login 200, /auth/me 401;
+ *  - everything else (localhost, same-site custom domain, unknown API URL) => 'lax'.
+ * Security is unchanged: the cookie stays HttpOnly, the CORS allow-list stays exact, and csrfOrigin still rejects unknown origins.
+ */
+function resolveSameSite({ explicit, isProd, corsOrigins = [], apiUrl }) {
+  if (explicit) return explicit;
+  if (!isProd || !apiUrl) return 'lax';
+  const apiSite = siteOf(hostnameOf(apiUrl));
+  if (!apiSite) return 'lax';
+  const cross = corsOrigins.filter((o) => !LOOPBACK.has(hostnameOf(o))).some((o) => siteOf(hostnameOf(o)) !== apiSite);
+  return cross ? 'none' : 'lax';
+}
+
+module.exports = { cookieWarnings, resolveSameSite, siteOf, hostnameOf };
