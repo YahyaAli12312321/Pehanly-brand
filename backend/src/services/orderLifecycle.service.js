@@ -27,6 +27,7 @@
 */
 
 const Payment = require('../models/Payment');
+const Sku = require('../models/Sku');
 const ApiError = require('../utils/ApiError');
 const stockReservation = require('./stockReservation.service');
 const couponService = require('./coupon.service');
@@ -77,6 +78,30 @@ function groupedSkuLines(order) {
 }
 
 /*
+ * The stock guards in stockReservation refuse (409) when the SKU does not hold what the order needs, but their message
+ * ("Unable to commit reserved stock") does not tell the admin which SKU or why. This keeps the same 409 + code (the
+ * guard is NOT relaxed) and only swaps in a specific, actionable message. Any other error passes through untouched.
+ */
+async function explainStockFailure(err, code, skuId, quantity, session) {
+  if (!(err instanceof ApiError) || err.code !== code) return err;
+  try {
+    const sku = await Sku.findById(skuId).session(session).select('sku stock reservedStock available').lean();
+    if (!sku) return ApiError.conflict(`A SKU on this order no longer exists, so its stock cannot be updated (SKU id ${skuId}).`, code);
+    const label = sku.sku || String(skuId);
+    const have = `${sku.stock ?? 0} in stock, ${sku.reservedStock ?? 0} reserved`;
+    if (code === 'INVALID_STOCK_COMMIT') {
+      const why = (sku.reservedStock ?? 0) < quantity
+        ? 'fewer units are reserved for orders than this order needs (the reservation was released or stock was edited after the order was placed)'
+        : 'there is less physical stock than this order needs';
+      return ApiError.conflict(`Cannot mark as shipped: SKU ${label} needs ${quantity} unit(s) but has ${have}; ${why}. Correct the SKU's stock in Inventory, then try again.`, code);
+    }
+    return ApiError.conflict(`Cannot cancel: SKU ${label} should have ${quantity} unit(s) reserved for this order but has ${have}. Correct the SKU's stock in Inventory, then try again.`, code);
+  } catch {
+    return err; // never hide the original refusal because the explanation lookup failed
+  }
+}
+
+/*
  * Convert reservations into a physical stock deduction (order -> SHIPPED).
  * Idempotent: a second call for the same order does nothing.
  */
@@ -88,7 +113,11 @@ async function commitOrderStock(order, session) {
   }
 
   for (const [skuId, quantity] of groupedSkuLines(order)) {
-    await stockReservation.commitSku(skuId, quantity, session);
+    try {
+      await stockReservation.commitSku(skuId, quantity, session);
+    } catch (err) {
+      throw await explainStockFailure(err, 'INVALID_STOCK_COMMIT', skuId, quantity, session);
+    }
   }
 
   order.stockCommittedAt = new Date();
@@ -115,11 +144,12 @@ async function releaseOrderStock(order, session) {
   }
 
   for (const [skuId, quantity] of groupedSkuLines(order)) {
-    const release = await stockReservation.releaseSku(
-      skuId,
-      quantity,
-      session,
-    );
+    let release;
+    try {
+      release = await stockReservation.releaseSku(skuId, quantity, session);
+    } catch (err) {
+      throw await explainStockFailure(err, 'INVALID_STOCK_RELEASE', skuId, quantity, session);
+    }
 
     if (release?.stockTransition?.before && release?.stockTransition?.after) {
       transitions.push(release.stockTransition);
