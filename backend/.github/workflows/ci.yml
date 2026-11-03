@@ -1,0 +1,28 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: Offline test suite (no database is contacted)
+        run: npm test
+        env:
+          # Placeholders only. The offline suite never connects; the integration suite is run manually
+          # against a real Atlas TEST database.
+          NODE_ENV: test
+          MONGODB_URI: mongodb://127.0.0.1:27017/ci_main
+          MONGODB_TEST_URI: mongodb://127.0.0.1:27017/ci_test
+          CORS_ORIGINS: http://localhost:5173
+          CLIENT_URL: http://localhost:5173
+          JWT_SECRET: ci-only-secret-ci-only-secret-ci-only-1234
+      - run: npm audit --omit=dev --audit-level=high
