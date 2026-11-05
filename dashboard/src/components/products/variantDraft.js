@@ -604,3 +604,104 @@ export function generateAllSkus(drafts, { sizes: fixedSizes } = {}) {
   });
   return { drafts: next, added, skipped, sizes };
 }
+
+/**
+ * "Apply to All Colors": copy one source colour's SKU set (sizes, prices, opening stock) to the other colours.
+ *
+ * Pure planning step - nothing is changed until applyColorPlan() runs, so the UI can preview, ask for confirmation and report.
+ * Per target colour and source size:
+ *  - the target has no row for that size -> CREATE one (VARIANTCODE-SIZE, same convention as every other SKU; prices + opening
+ *    stock copied; USD copied only where the source has it),
+ *  - the target row already holds the same values -> SAME (skipped),
+ *  - the target row has blanks only where the source has values (an untouched generated row) -> FILL (safe, not a conflict),
+ *  - the target row has different non-blank values -> CONFLICT. Conflicts are only changed when the admin confirms.
+ * Target sizes the source does not have are never touched. Saved SKUs keep their live stock (stock is changed through inventory
+ * adjustments, not the product form), so a stock difference on a saved SKU is reported as `stockKept`, never overwritten.
+ */
+export const COPY_PRICE_FIELDS = ["price", "compareAtPrice", "wholesalePrice", "priceUSD", "compareAtPriceUSD"];
+const blank = (v) => v === "" || v === null || v === undefined;
+const sameNum = (a, b) => (blank(a) && blank(b)) || (!blank(a) && !blank(b) && Number(a) === Number(b));
+
+export function planApplyToAllColors(drafts, sourceKey) {
+  const source = drafts.find((d) => d.key === sourceKey);
+  const plan = { source: source ? { key: source.key, name: source.color?.name?.trim() || "Unnamed colour" } : null, rows: [], targets: [], create: [], fill: [], same: [], conflicts: [], skipped: [], stockKept: [], error: null };
+  if (!source) { plan.error = "Choose the colour to copy from."; return plan; }
+  const srcRows = [];
+  for (const s of source.sizes) {
+    const size = String(s.size ?? "").trim();
+    if (!size) continue;
+    if (!(Number(s.price) > 0)) { plan.skipped.push({ variant: plan.source.name, size, reason: "No retail price on the source row yet" }); continue; }
+    srcRows.push(s);
+  }
+  plan.rows = srcRows.map((s) => ({ size: String(s.size).trim(), price: s.price, compareAtPrice: s.compareAtPrice, wholesalePrice: s.wholesalePrice, priceUSD: s.priceUSD, compareAtPriceUSD: s.compareAtPriceUSD, stock: Number(s.stock) || 0 }));
+  if (!srcRows.length) { plan.error = `${plan.source.name} has no size with a retail price to copy. Enter sizes and prices first.`; return plan; }
+
+  const taken = new Set(drafts.flatMap((d) => d.sizes.map((s) => normalizeCode(s.sku)).filter(Boolean)));
+  for (const t of drafts) {
+    if (t.key === source.key) continue;
+    const name = t.color?.name?.trim() || "Unnamed colour";
+    const code = normalizeCode(t.variantCode);
+    plan.targets.push({ key: t.key, name });
+    if (!code) { plan.skipped.push({ variant: name, reason: "No variant code yet - enter one, then apply again" }); continue; }
+    for (const s of srcRows) {
+      const size = String(s.size).trim();
+      const existing = t.sizes.find((x) => normalizeCode(x.size) === normalizeCode(size));
+      if (!existing) {
+        const sku = buildSku(code, size);
+        if (!SKU_RE.test(sku)) { plan.skipped.push({ variant: name, size, reason: `${sku || "SKU"} is not a valid SKU code` }); continue; }
+        if (taken.has(sku)) { plan.skipped.push({ variant: name, size, reason: `SKU ${sku} is already used by another row` }); continue; }
+        taken.add(sku);
+        plan.create.push({ target: t.key, variant: name, size, sku, from: s });
+        continue;
+      }
+      const diffs = [];
+      let fillable = false;
+      for (const f of COPY_PRICE_FIELDS) {
+        if (sameNum(existing[f], s[f])) continue;
+        if (blank(s[f])) continue; // the source has nothing to offer for this field - never blank out the target
+        if (blank(existing[f])) fillable = true;
+        else diffs.push({ field: f, from: existing[f], to: s[f] });
+      }
+      const srcStock = Number(s.stock) || 0;
+      const curStock = Number(existing.stock) || 0;
+      if (existing.isNew) {
+        if (curStock !== srcStock) { if (curStock === 0) fillable = true; else diffs.push({ field: "stock", from: curStock, to: srcStock }); }
+      } else if (curStock !== srcStock) {
+        plan.stockKept.push({ variant: name, size, current: curStock, source: srcStock });
+      }
+      const item = { target: t.key, variant: name, size, sku: existing.sku, rowKey: existing.key, from: s, diffs };
+      if (diffs.length) plan.conflicts.push(item);
+      else if (fillable) plan.fill.push(item);
+      else plan.same.push(item);
+    }
+  }
+  return plan;
+}
+
+/** Runs a plan. `overwriteConflicts` false (default) adds/fills only; true also updates conflicting rows. Returns { drafts, summary }. */
+export function applyColorPlan(drafts, plan, { overwriteConflicts = false } = {}) {
+  const summary = { created: 0, filled: 0, updated: 0, skippedExisting: plan.same.length, conflictsLeft: overwriteConflicts ? 0 : plan.conflicts.length, skipped: plan.skipped, stockKept: plan.stockKept };
+  const copyVals = (s, isNew) => ({
+    price: s.price, compareAtPrice: s.compareAtPrice ?? "", wholesalePrice: s.wholesalePrice ?? "", priceUSD: s.priceUSD ?? "", compareAtPriceUSD: s.compareAtPriceUSD ?? "",
+    ...(isNew ? { stock: Number(s.stock) || 0 } : {}),
+  });
+  const patchRow = (row, item) => {
+    const vals = copyVals(item.from, row.isNew);
+    // optional fields the source leaves empty never blank out something the target already has
+    for (const f of ["compareAtPrice", "wholesalePrice", "priceUSD", "compareAtPriceUSD"]) if (blank(vals[f]) && !blank(row[f])) vals[f] = row[f];
+    return { ...row, ...vals };
+  };
+  const byTarget = new Map();
+  const add = (k, fn) => byTarget.set(k, [...(byTarget.get(k) || []), fn]);
+  for (const c of plan.create) add(c.target, (d) => { d.sizes = [...d.sizes, { ...newSizeDraft(d.variantCode, c.size), ...copyVals(c.from, true) , sku: c.sku }]; summary.created++; });
+  for (const f of plan.fill) add(f.target, (d) => { d.sizes = d.sizes.map((r) => (r.key === f.rowKey ? patchRow(r, f) : r)); summary.filled++; });
+  if (overwriteConflicts) for (const c of plan.conflicts) add(c.target, (d) => { d.sizes = d.sizes.map((r) => (r.key === c.rowKey ? patchRow(r, c) : r)); summary.updated++; });
+  const next = drafts.map((d) => {
+    const fns = byTarget.get(d.key);
+    if (!fns) return d;
+    const copy = { ...d, sizes: [...d.sizes], dirty: true };
+    fns.forEach((fn) => fn(copy));
+    return copy;
+  });
+  return { drafts: next, summary };
+}
