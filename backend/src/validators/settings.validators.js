@@ -27,6 +27,7 @@ exports.updateBody = z
       .object({
         facebook: optionalUrl,
         instagram: optionalUrl,
+        linkedin: optionalUrl,
         tiktok: optionalUrl,
         youtube: optionalUrl,
       })

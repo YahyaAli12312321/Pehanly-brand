@@ -28,6 +28,7 @@ const storeSettingsSchema = new mongoose.Schema(
     social: {
       facebook: { type: String, trim: true, maxlength: 300 },
       instagram: { type: String, trim: true, maxlength: 300 },
+      linkedin: { type: String, trim: true, maxlength: 300 },
       tiktok: { type: String, trim: true, maxlength: 300 },
       youtube: { type: String, trim: true, maxlength: 300 },
     },

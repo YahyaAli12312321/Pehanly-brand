@@ -2,10 +2,22 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { buildPath } from '../routes';
 import { useCategoriesQuery, usePublicSettingsQuery } from '../hooks/useQueries';
+import BrandIcon from './BrandIcon';
+import { resolveSocialLinks } from '../config/social';
 
 const linkClass = 'text-xs text-[#B8C4BE] hover:text-white transition-colors';
-const iconLinkClass =
-  'w-8 h-8 rounded-full bg-primary-light/60 flex items-center justify-center hover:bg-accent hover:text-primary transition-all';
+/** Contact row: icon + text, so it reads as information rather than as a second set of social buttons. */
+const contactLinkClass =
+  'group inline-flex items-center gap-2.5 text-xs text-[#B8C4BE] hover:text-white transition-colors focus-visible:outline-none focus-visible:text-white';
+const contactIconClass =
+  'w-7 h-7 shrink-0 rounded-full border border-white/10 bg-primary-light/40 flex items-center justify-center text-accent group-hover:border-accent/70 group-hover:bg-accent/15 transition-colors';
+/** Social buttons: one size, one weight, accent-on-hover with a soft lift. */
+const socialLinkClass =
+  'w-10 h-10 rounded-full border border-white/15 bg-primary-light/40 text-[#B8C4BE] flex items-center justify-center ' +
+  'transition-[transform,background-color,border-color,color,box-shadow] duration-300 ease-out ' +
+  'hover:bg-accent hover:text-primary hover:border-accent hover:shadow-[0_10px_22px_-10px_rgba(168,189,36,0.9)] ' +
+  'motion-safe:hover:-translate-y-0.5 ' +
+  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-primary';
 
 export default function Footer() {
   const { data: settings } = usePublicSettingsQuery();
@@ -15,6 +27,8 @@ export default function Footer() {
   const social = settings?.social || {};
   const whatsappDigits = String(contact.whatsapp || '').replace(/\D/g, '');
   const storeName = settings?.storeName || 'PEHAN LY';
+  // Merchant-managed in Admin -> Settings -> Social, with config/social.js fallbacks. Missing profiles are not rendered.
+  const socialLinks = resolveSocialLinks(social);
 
   return (
     <footer className="w-full bg-primary text-white mt-12 border-t border-primary-dark">
@@ -44,36 +58,32 @@ export default function Footer() {
               High-density apparel engineered for modern confidence. Direct retail, scalable B2B wholesale, custom manufacturing and printing &amp; branding.
             </p>
             {contact.address && <p className="text-xs text-[#B8C4BE] leading-relaxed max-w-sm">{contact.address}</p>}
-            <div className="flex items-center gap-3 pt-2 text-accent">
-              <Link to={buildPath('about')} aria-label="About PEHANLY" className={iconLinkClass}>
-                <span className="material-symbols-outlined text-[18px]" aria-hidden="true">public</span>
-              </Link>
+            <ul className="flex flex-col gap-2.5 pt-2">
               {whatsappDigits && (
-                <a href={`https://wa.me/${whatsappDigits}`} target="_blank" rel="noopener noreferrer" aria-label="Chat on WhatsApp" className={iconLinkClass}>
-                  <span className="material-symbols-outlined text-[18px]" aria-hidden="true">chat</span>
-                </a>
+                <li>
+                  <a href={`https://wa.me/${whatsappDigits}`} target="_blank" rel="noopener noreferrer" className={contactLinkClass}>
+                    <span className={contactIconClass}><BrandIcon name="whatsapp" className="w-[15px] h-[15px]" /></span>
+                    <span>Chat on WhatsApp</span>
+                  </a>
+                </li>
               )}
               {contact.email && (
-                <a href={`mailto:${contact.email}`} aria-label="Email support" className={iconLinkClass}>
-                  <span className="material-symbols-outlined text-[18px]" aria-hidden="true">mail</span>
-                </a>
+                <li>
+                  <a href={`mailto:${contact.email}`} className={contactLinkClass}>
+                    <span className={contactIconClass}><span className="material-symbols-outlined text-[16px]" aria-hidden="true">mail</span></span>
+                    <span className="break-all">{contact.email}</span>
+                  </a>
+                </li>
               )}
               {contact.phone && (
-                <a href={`tel:${contact.phone.replace(/\s/g, '')}`} aria-label="Call us" className={iconLinkClass}>
-                  <span className="material-symbols-outlined text-[18px]" aria-hidden="true">call</span>
-                </a>
+                <li>
+                  <a href={`tel:${contact.phone.replace(/\s/g, '')}`} className={contactLinkClass}>
+                    <span className={contactIconClass}><span className="material-symbols-outlined text-[16px]" aria-hidden="true">call</span></span>
+                    <span>{contact.phone}</span>
+                  </a>
+                </li>
               )}
-              {social.instagram && (
-                <a href={social.instagram} target="_blank" rel="noopener noreferrer" aria-label="Instagram" className={iconLinkClass}>
-                  <span className="material-symbols-outlined text-[18px]" aria-hidden="true">photo_camera</span>
-                </a>
-              )}
-              {social.facebook && (
-                <a href={social.facebook} target="_blank" rel="noopener noreferrer" aria-label="Facebook" className={iconLinkClass}>
-                  <span className="material-symbols-outlined text-[18px]" aria-hidden="true">thumb_up</span>
-                </a>
-              )}
-            </div>
+            </ul>
           </div>
 
           {/* Column 2: Retail Shop (live categories) */}
@@ -107,6 +117,37 @@ export default function Footer() {
             )}
           </nav>
         </div>
+
+        {/* Social media */}
+        {socialLinks.length > 0 && (
+          <section
+            aria-labelledby="footer-social-heading"
+            className="flex flex-col sm:flex-row items-center sm:items-end justify-between gap-6 pb-10 -mt-4 border-b border-primary-light/40"
+          >
+            <div className="text-center sm:text-left">
+              <h2 id="footer-social-heading" className="font-headline text-xs uppercase tracking-widest font-bold text-accent">
+                Follow {storeName}
+              </h2>
+              <p className="text-xs text-[#B8C4BE] mt-1.5">New drops, behind the seams and restock alerts.</p>
+            </div>
+            <ul className="flex flex-wrap items-center justify-center gap-3 sm:gap-3.5">
+              {socialLinks.map(({ key, label, url }) => (
+                <li key={key}>
+                  <a
+                    href={url}
+                    target="_blank"
+                    rel="noopener noreferrer me"
+                    aria-label={`${storeName} on ${label}`}
+                    title={label}
+                    className={socialLinkClass}
+                  >
+                    <BrandIcon name={key} />
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
 
         {/* Payment methods & Copyright */}
         <div className="flex flex-col md:flex-row items-center justify-between gap-6 text-xs text-[#B8C4BE]">

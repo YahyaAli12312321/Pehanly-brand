@@ -25,7 +25,7 @@ const URL_RE = /^https?:\/\/\S+$/i;
 const toForm = (s) => ({
   storeName: s.storeName || "", tagline: s.tagline || "",
   contact: { email: s.contact?.email || "", phone: s.contact?.phone || "", whatsapp: s.contact?.whatsapp || "", address: s.contact?.address || "" },
-  social: { facebook: s.social?.facebook || "", instagram: s.social?.instagram || "", tiktok: s.social?.tiktok || "", youtube: s.social?.youtube || "" },
+  social: { facebook: s.social?.facebook || "", instagram: s.social?.instagram || "", linkedin: s.social?.linkedin || "", tiktok: s.social?.tiktok || "", youtube: s.social?.youtube || "" },
   checkout: { guestCheckoutEnabled: s.checkout?.guestCheckoutEnabled !== false, codEnabled: s.checkout?.codEnabled !== false, jazzcashEnabled: Boolean(s.checkout?.jazzcashEnabled) },
   returns: { enabled: s.returns?.enabled !== false, windowDays: s.returns?.windowDays ?? 7 },
   announcement: { enabled: Boolean(s.announcement?.enabled), text: s.announcement?.text || "", link: s.announcement?.link || "" },
@@ -141,7 +141,7 @@ export const SettingsPage = () => {
     const e = {};
     if (!form.storeName.trim()) e.storeName = "Store name is required.";
     if (form.contact.email && !/^\S+@\S+\.\S+$/.test(form.contact.email)) e["contact.email"] = "Enter a valid email address.";
-    for (const k of ["facebook", "instagram", "tiktok", "youtube"]) if (form.social[k] && !URL_RE.test(form.social[k])) e[`social.${k}`] = "Must be a full http(s) URL.";
+    for (const k of ["facebook", "instagram", "linkedin", "tiktok", "youtube"]) if (form.social[k] && !URL_RE.test(form.social[k])) e[`social.${k}`] = "Must be a full http(s) URL.";
     const days = Number(form.returns.windowDays);
     if (!Number.isInteger(days) || days < 0 || days > 365) e["returns.windowDays"] = "Whole number of days between 0 and 365.";
     if (form.announcement.link && !(/^\/(?!\/)/.test(form.announcement.link) || URL_RE.test(form.announcement.link))) e["announcement.link"] = 'Use an http(s) URL or a path starting with "/".';
@@ -184,7 +184,7 @@ export const SettingsPage = () => {
                 <FormField label="Address" error={err("contact.address")}><input className={inp} maxLength={300} value={form.contact.address} onChange={set("contact.address")} /></FormField>
               </div>
               <h3 className="text-sm font-bold text-slate-900 pt-2">Social links</h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">{["facebook", "instagram", "tiktok", "youtube"].map((k) => <FormField key={k} label={k[0].toUpperCase() + k.slice(1)} error={err(`social.${k}`)}><input className={inp} maxLength={300} placeholder="https://…" value={form.social[k]} onChange={set(`social.${k}`)} /></FormField>)}</div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">{["facebook", "instagram", "linkedin", "tiktok", "youtube"].map((k) => <FormField key={k} label={k[0].toUpperCase() + k.slice(1)} error={err(`social.${k}`)}><input className={inp} maxLength={300} placeholder="https://…" value={form.social[k]} onChange={set(`social.${k}`)} /></FormField>)}</div>
               <h3 className="text-sm font-bold text-slate-900 pt-2">Announcement bar</h3>
               <label className="flex items-center gap-2 text-xs font-semibold text-slate-700"><Toggle checked={form.announcement.enabled} onChange={(v) => set("announcement.enabled")(v)} /> Show on storefront</label>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4"><FormField label="Text" error={err("announcement.text")}><input className={inp} maxLength={240} value={form.announcement.text} onChange={set("announcement.text")} /></FormField><FormField label="Link" error={err("announcement.link")}><input className={inp} maxLength={300} value={form.announcement.link} onChange={set("announcement.link")} /></FormField></div>

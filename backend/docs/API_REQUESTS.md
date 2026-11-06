@@ -2786,6 +2786,7 @@ Optional fields: `permissions`
   "social": {
     "facebook": "https://example.com/sample",
     "instagram": "https://example.com/sample",
+    "linkedin": "https://example.com/sample",
     "tiktok": "https://example.com/sample",
     "youtube": "https://example.com/sample"
   },
