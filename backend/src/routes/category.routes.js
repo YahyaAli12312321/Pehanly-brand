@@ -11,5 +11,7 @@ router.post('/', validate({ body: v.createBody }), c.create);
 router.get('/:id', validate({ params: v.idParams }), c.get);
 router.patch('/:id', validate({ params: v.idParams, body: v.updateBody }), c.update);
 router.patch('/:id/status', validate({ params: v.idParams, body: v.statusBody }), c.setStatus);
+router.get('/:id/delete-check', validate({ params: v.idParams }), c.deletePreview);
+router.delete('/:id', validate({ params: v.idParams }), c.remove);
 
 module.exports = router;

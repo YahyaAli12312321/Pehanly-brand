@@ -23,6 +23,7 @@ import { Pagination } from "../components/common/Pagination";
 import { EmptyState } from "../components/common/EmptyState";
 import { ErrorState } from "../components/common/ErrorState";
 import { LoadingSkeleton } from "../components/common/LoadingSkeleton";
+import { DeleteEntityDialog } from "../components/common/DeleteEntityDialog";
 
 const DEFAULT_AUDIENCES = ["men", "women", "kids", "couples", "unisex"];
 const TREE_LIMIT = 100; // backend max page size
@@ -52,6 +53,7 @@ export const CategoriesPage = () => {
   const [form, setForm] = useState(EMPTY_FORM);
   const [slugTouched, setSlugTouched] = useState(false);
   const [formErrors, setFormErrors] = useState({ fields: {}, general: "" });
+  const [deleting, setDeleting] = useState(null);
   const [activeMenuId, setActiveMenuId] = useState(null);
 
   const isTree = viewMode === "tree";
@@ -417,6 +419,7 @@ export const CategoriesPage = () => {
                               {activeMenuId === cat._id && <div className="absolute right-4 top-10 w-44 rounded-xl bg-white shadow-xl border border-slate-200 py-1 z-30 text-left text-xs" onClick={(e) => e.stopPropagation()}>
                                   <button type="button" onClick={() => openDrawer(cat)} className="w-full text-left px-3 py-2 hover:bg-slate-50 text-slate-700">Edit Category</button>
                                   <button type="button" onClick={() => navigate(`/products?category=${cat._id}`)} className="w-full text-left px-3 py-2 hover:bg-slate-50 text-slate-700">View Products</button>
+                                  <button type="button" data-testid={`delete-category-${cat._id}`} onClick={() => { setActiveMenuId(null); setDeleting({ id: cat._id, name: cat.name }); }} className="w-full text-left px-3 py-2 hover:bg-rose-50 text-rose-700 border-t border-slate-100">Delete Category</button>
                                 </div>}
                             </td>}
                         </tr>;
@@ -533,5 +536,16 @@ export const CategoriesPage = () => {
           </FormField>
         </form>
       </Drawer>
+
+      <DeleteEntityDialog
+    isOpen={Boolean(deleting)}
+    entity={deleting}
+    label="category"
+    deleteCheck={categoriesApi.deleteCheck}
+    onDelete={categoriesApi.remove}
+    onDeactivate={(id) => categoriesApi.setStatus(id, false)}
+    onClose={() => setDeleting(null)}
+    onDeleted={(res) => { addToast(`Category "${res?.name || deleting?.name}" deleted.`); refresh(); }}
+  />
     </div>;
 };

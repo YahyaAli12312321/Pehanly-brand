@@ -11,6 +11,8 @@ router.post('/', validate({ body: v.createProductBody }), c.create);
 router.get('/:id', validate({ params: v.idParams }), c.get);
 router.patch('/:id', validate({ params: v.idParams, body: v.updateProductBody }), c.update);
 router.patch('/:id/status', validate({ params: v.idParams, body: v.statusBody }), c.setStatus);
+router.get('/:id/delete-check', validate({ params: v.idParams }), c.deletePreview);
+router.delete('/:id', validate({ params: v.idParams }), c.remove);
 router.post('/:id/variants', validate({ params: v.idParams, body: v.createVariantBody }), c.createVariant);
 router.patch('/:id/variants/:variantId', validate({ params: v.variantParams, body: v.updateVariantBody }), c.updateVariant);
 

@@ -23,6 +23,7 @@ import { discountPercent, formatDate } from '../utils/format';
 import { formatMoney, priceRange, skuCompareAt, skuPrice, soldIn } from '../utils/currency';
 import { useCurrency } from '../store/useCurrencyStore';
 import { toCartLine } from '../utils/product';
+import SizeChart, { pickChart } from '../components/SizeChart';
 
 function Stars({ value, size = 18 }) {
   return (
@@ -222,6 +223,7 @@ export default function ProductDetailPage() {
         ? `Only ${sku.maxQuantity} left in size ${sku.size}`
         : null;
 
+  const hasSizeChart = Boolean(pickChart(settings?.sizeCharts, product));
   const toggleAccordion = (i) => setExpanded((prev) => (prev.includes(i) ? prev.filter((x) => x !== i) : [...prev, i]));
 
   const accordions = [
@@ -416,8 +418,20 @@ export default function ProductDetailPage() {
             {/* Size */}
             {variant && (
               <div className="flex flex-col gap-3">
-                <div className="text-xs font-semibold text-on-surface" id="size-label">
-                  Select Size: <strong className="text-primary font-bold">{size || '—'}</strong>
+                <div className="flex items-center justify-between gap-3">
+                  <div className="text-xs font-semibold text-on-surface" id="size-label">
+                    Select Size: <strong className="text-primary font-bold">{size || '—'}</strong>
+                  </div>
+                  {hasSizeChart && (
+                    <a
+                      href="#size-chart"
+                      data-testid="size-chart-link"
+                      className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline underline-offset-2"
+                    >
+                      <span className="material-symbols-outlined text-[16px]" aria-hidden="true">straighten</span>
+                      Size chart
+                    </a>
+                  )}
                 </div>
                 <div className="grid grid-cols-4 sm:grid-cols-6 gap-2" role="radiogroup" aria-labelledby="size-label">
                   {variant.sizes.map((s) => {
@@ -530,6 +544,8 @@ export default function ProductDetailPage() {
           </div>
         </div>
       </section>
+
+      <SizeChart product={product} charts={settings?.sizeCharts} selectedSize={size} />
 
       {/* 3. Details accordions */}
       <section className="max-w-[1200px] mx-auto px-4 sm:px-8 lg:px-10 py-10 w-full border-t border-border-subtle">

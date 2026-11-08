@@ -10,6 +10,8 @@ const categoryService = require('./category.service');
 const { audienceCondition } = require('./audience');
 const audit = require('./audit.service');
 const { variantView, summarize } = require('../utils/presenter');
+const deletion = require('./deletion.service');
+const InventoryTransaction = require('../models/InventoryTransaction');
 const { SALES_CHANNELS, effectiveChannel, channelFilter } = require('../constants/salesChannel');
 
 async function uniqueSlug(base, excludeId) {
@@ -208,4 +210,50 @@ async function bulk({ ids, action }, actor, req) {
   return results;
 }
 
-module.exports = { list, summary, getById, create, update, changeStatus, bulk, _internals: { resolveChannel } };
+/**
+ * What a permanent delete would remove, and what is stopping it.
+ * The admin dashboard calls this before showing the confirmation, so the warning is specific rather than generic.
+ */
+async function deletePreview(id) {
+  const product = await Product.findById(id).select('name status').lean();
+  if (!product) throw ApiError.notFound('Product not found', 'PRODUCT_NOT_FOUND');
+
+  const [variants, skus, blockers] = await Promise.all([
+    ProductVariant.countDocuments({ product: id }),
+    Sku.countDocuments({ product: id }),
+    deletion.productBlockers(id),
+  ]);
+
+  return { id: String(product._id), name: product.name, status: product.status, variants, skus, blockers, canDelete: blockers.length === 0 };
+}
+
+/**
+ * Permanently removes a product and everything that exists only to describe it: its variants, their SKUs, the stock
+ * ledger for those SKUs and its reviews. Refused while anything else still references the product, so order, quote,
+ * return and wholesale history can never end up pointing at a product that no longer exists.
+ */
+async function remove(id, actor, req) {
+  const preview = await deletePreview(id);
+
+  if (!preview.canDelete) {
+    throw ApiError.conflict(
+      `This product is used by ${deletion.describe(preview.blockers)}, so it cannot be deleted. Deactivate it instead to hide it from the store.`,
+      'PRODUCT_IN_USE',
+    );
+  }
+
+  const Review = mongoose.modelNames().includes('Review') ? mongoose.model('Review') : null;
+
+  await Promise.all([
+    Sku.deleteMany({ product: id }),
+    ProductVariant.deleteMany({ product: id }),
+    InventoryTransaction.deleteMany({ product: id }),
+    Review ? Review.deleteMany({ product: id }) : Promise.resolve(),
+  ]);
+  await Product.deleteOne({ _id: id });
+
+  await audit.record(actor, 'product.delete', 'Product', id, { name: preview.name, variants: preview.variants, skus: preview.skus }, req);
+  return { id: String(id), name: preview.name, variants: preview.variants, skus: preview.skus };
+}
+
+module.exports = { list, summary, getById, create, update, changeStatus, bulk, deletePreview, remove, _internals: { resolveChannel } };

@@ -1,4 +1,4 @@
-import { get, post, patch, cleanParams } from '../lib/apiClient';
+import { get, post, patch, del, cleanParams } from '../lib/apiClient';
 
 /** Editor rows {minQuantity, mode: discount|price|quote, value} -> backend tiers (price / % per tier, or quote-only). */
 export const tiersToApi = (rows = []) => rows
@@ -17,7 +17,8 @@ export const tiersFromApi = (tiers = []) => tiers.map((t) => ({
 
 /**
  * Products / variants / SKUs (admin). Backend: /admin/products — catalog.read (GET) / catalog.manage (writes).
- * No delete or duplicate endpoint exists. New products are always created as `draft`; publishing
+ * Delete is permanent and refused (409 PRODUCT_IN_USE) while an order, quote, return or wholesale pack still
+ * references the product: ask `deleteCheck` first and deactivate instead when it is blocked. No duplicate endpoint. New products are always created as `draft`; publishing
  * (`status: active`) is a separate step that the backend refuses (409 PRODUCT_NOT_READY) until a
  * sellable colour/size exists. Stock for existing SKUs is NEVER written here (see inventoryApi).
  *
@@ -41,6 +42,9 @@ export const productsApi = {
   update: async (id, form) => (await patch(`/admin/products/${id}`, productBody(form))).data,
   /** status: draft | active | inactive */
   setStatus: async (id, status) => (await patch(`/admin/products/${id}/status`, { status })).data,
+  /** { id, name, status, variants, skus, blockers: [{ key, label, count }], canDelete } */
+  deleteCheck: async (id) => (await get(`/admin/products/${id}/delete-check`)).data,
+  remove: async (id) => (await del(`/admin/products/${id}`)).data,
   /** action: activate | deactivate | feature | unfeature  ->  { updated: id[], failed: [{id, reason}] } */
   bulk: async (ids, action) => (await post('/admin/products/bulk', { ids, action })).data,
   createVariant: async (productId, draft) => (await post(`/admin/products/${productId}/variants`, variantBody(draft, true))).data,

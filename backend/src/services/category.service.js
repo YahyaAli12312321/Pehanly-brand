@@ -3,6 +3,8 @@ const mongoose = require('mongoose');
 const Category = require('../models/Category');
 const ApiError = require('../utils/ApiError');
 const { slugify, escapeRegex } = require('../utils/slugify');
+const audit = require('./audit.service');
+const deletion = require('./deletion.service');
 
 /** Product counts per category. Product model arrives in the catalog module; until then every count is 0. */
 async function productCounts(ids) {
@@ -184,4 +186,32 @@ async function setStatus(id, isActive) {
   return getById(id);
 }
 
-module.exports = { list, summary, audiences, getById, create, update, setStatus, subtreeIds, isRetailOnly, dedicatedSectionIds, assertAssignable };
+/** What a permanent delete would remove, and what is stopping it (sub-categories or products anywhere beneath it). */
+async function deletePreview(id) {
+  const doc = await Category.findById(id).select('name slug isActive').lean();
+  if (!doc) throw ApiError.notFound('Category not found', 'CATEGORY_NOT_FOUND');
+
+  const blockers = await deletion.categoryBlockers(id, await subtreeIds(id));
+  return { id: String(doc._id), name: doc.name, slug: doc.slug, blockers, canDelete: blockers.length === 0 };
+}
+
+/**
+ * Permanently removes an empty category. Refused while it still has sub-categories or products anywhere beneath it,
+ * so no product is ever left pointing at a category that no longer exists.
+ */
+async function remove(id, actor, req) {
+  const preview = await deletePreview(id);
+
+  if (!preview.canDelete) {
+    throw ApiError.conflict(
+      `This category still has ${deletion.describe(preview.blockers)}. Move or delete them first, or deactivate the category instead.`,
+      'CATEGORY_NOT_EMPTY',
+    );
+  }
+
+  await Category.deleteOne({ _id: id });
+  await audit.record(actor, 'category.delete', 'Category', id, { name: preview.name, slug: preview.slug }, req);
+  return { id: String(id), name: preview.name };
+}
+
+module.exports = { list, summary, audiences, getById, create, update, setStatus, deletePreview, remove, subtreeIds, isRetailOnly, dedicatedSectionIds, assertAssignable };

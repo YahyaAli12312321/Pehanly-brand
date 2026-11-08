@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "PEHANLY Backend API",
-    "description": "Generated from the live router and Zod validators by scripts/generate-postman.js (210 routes). Session-cookie auth: run a request from \"00 - Login\" first. No credentials are stored in this file.",
+    "description": "Generated from the live router and Zod validators by scripts/generate-postman.js (214 routes). Session-cookie auth: run a request from \"00 - Login\" first. No credentials are stored in this file.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "item": [
@@ -2633,6 +2633,158 @@
                 }
               ],
               "response": []
+            },
+            {
+              "name": "GET /admin/categories/:id/delete-check",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/admin/categories/:id/delete-check",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "admin",
+                    "categories",
+                    ":id",
+                    "delete-check"
+                  ],
+                  "query": [],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "{{categoryId}}"
+                    }
+                  ]
+                },
+                "description": "**Access:** Staff or owner - permission `catalog.read` (owner always passes)\n\n**Success status:** 200\n\n**Possible errors:** 422 VALIDATION_ERROR (body/query/params rejected; `errors[]` lists each field); 401 UNAUTHORIZED / SESSION_EXPIRED; 403 FORBIDDEN / PERMISSION_DENIED; 404 not found"
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "const __json = (() => { try { return pm.response.json(); } catch (e) { return null; } })();",
+                      "function __pickId(data) {",
+                      "  if (!data || typeof data !== 'object') return null;",
+                      "  if (data._id || data.id) return data._id || data.id;",
+                      "  const keys = Object.keys(data);",
+                      "  for (const k of keys) {",
+                      "    const v = data[k];",
+                      "    if (v && typeof v === 'object' && !Array.isArray(v) && (v._id || v.id)) return v._id || v.id;",
+                      "  }",
+                      "  return null;",
+                      "}",
+                      "pm.test('No server error (not 5xx)', () => pm.expect(pm.response.code).to.be.below(500));",
+                      "if (pm.response.code !== 204) {",
+                      "  pm.test('Response is JSON with the standard envelope', () => {",
+                      "    pm.expect(__json, 'JSON body').to.be.an('object');",
+                      "    pm.expect(__json.success, 'success flag').to.be.a('boolean');",
+                      "    pm.expect(__json.message, 'message').to.be.a('string');",
+                      "  });",
+                      "}",
+                      "if (pm.response.code === 200) {",
+                      "  pm.test('Success response: success=true', () => pm.expect(__json.success).to.equal(true));",
+                      "  if (__json && Array.isArray(__json.data) && __json.meta) {",
+                      "    pm.test('List response has pagination meta', () => {",
+                      "      pm.expect(__json.meta).to.be.an('object');",
+                      "      pm.expect(__json.meta.page === undefined || typeof __json.meta.page === 'number').to.equal(true);",
+                      "    });",
+                      "  }",
+                      "} else if (pm.response.code >= 400) {",
+                      "  pm.test('Error response has success=false and a code', () => {",
+                      "    pm.expect(__json.success).to.equal(false);",
+                      "    pm.expect(__json.code, 'error code').to.be.a('string');",
+                      "  });",
+                      "  if (pm.response.code === 422) {",
+                      "    pm.test('Validation error lists the failing fields', () => pm.expect(Array.isArray(__json.errors)).to.equal(true));",
+                      "  }",
+                      "  if (pm.response.code === 401) {",
+                      "    pm.test('Not signed in: run one of the Login requests first', () => pm.expect(__json.code).to.be.oneOf(['UNAUTHORIZED', 'SESSION_EXPIRED']));",
+                      "  }",
+                      "}"
+                    ]
+                  }
+                }
+              ],
+              "response": []
+            },
+            {
+              "name": "DELETE /admin/categories/:id",
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/admin/categories/:id",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "admin",
+                    "categories",
+                    ":id"
+                  ],
+                  "query": [],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "{{categoryId}}"
+                    }
+                  ]
+                },
+                "description": "**Access:** Staff or owner - permission `catalog.manage` (owner always passes)\n\n**Success status:** 200\n\n**Possible errors:** 422 VALIDATION_ERROR (body/query/params rejected; `errors[]` lists each field); 401 UNAUTHORIZED / SESSION_EXPIRED; 403 FORBIDDEN / PERMISSION_DENIED; 404 not found; 409 conflict (a business rule or a duplicate, e.g. insufficient stock)"
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "const __json = (() => { try { return pm.response.json(); } catch (e) { return null; } })();",
+                      "function __pickId(data) {",
+                      "  if (!data || typeof data !== 'object') return null;",
+                      "  if (data._id || data.id) return data._id || data.id;",
+                      "  const keys = Object.keys(data);",
+                      "  for (const k of keys) {",
+                      "    const v = data[k];",
+                      "    if (v && typeof v === 'object' && !Array.isArray(v) && (v._id || v.id)) return v._id || v.id;",
+                      "  }",
+                      "  return null;",
+                      "}",
+                      "pm.test('No server error (not 5xx)', () => pm.expect(pm.response.code).to.be.below(500));",
+                      "if (pm.response.code !== 204) {",
+                      "  pm.test('Response is JSON with the standard envelope', () => {",
+                      "    pm.expect(__json, 'JSON body').to.be.an('object');",
+                      "    pm.expect(__json.success, 'success flag').to.be.a('boolean');",
+                      "    pm.expect(__json.message, 'message').to.be.a('string');",
+                      "  });",
+                      "}",
+                      "if (pm.response.code === 200) {",
+                      "  pm.test('Success response: success=true', () => pm.expect(__json.success).to.equal(true));",
+                      "  ",
+                      "} else if (pm.response.code >= 400) {",
+                      "  pm.test('Error response has success=false and a code', () => {",
+                      "    pm.expect(__json.success).to.equal(false);",
+                      "    pm.expect(__json.code, 'error code').to.be.a('string');",
+                      "  });",
+                      "  if (pm.response.code === 422) {",
+                      "    pm.test('Validation error lists the failing fields', () => pm.expect(Array.isArray(__json.errors)).to.equal(true));",
+                      "  }",
+                      "  if (pm.response.code === 401) {",
+                      "    pm.test('Not signed in: run one of the Login requests first', () => pm.expect(__json.code).to.be.oneOf(['UNAUTHORIZED', 'SESSION_EXPIRED']));",
+                      "  }",
+                      "}"
+                    ]
+                  }
+                }
+              ],
+              "response": []
             }
           ]
         }
@@ -3746,6 +3898,158 @@
                     }
                   }
                 }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "const __json = (() => { try { return pm.response.json(); } catch (e) { return null; } })();",
+                      "function __pickId(data) {",
+                      "  if (!data || typeof data !== 'object') return null;",
+                      "  if (data._id || data.id) return data._id || data.id;",
+                      "  const keys = Object.keys(data);",
+                      "  for (const k of keys) {",
+                      "    const v = data[k];",
+                      "    if (v && typeof v === 'object' && !Array.isArray(v) && (v._id || v.id)) return v._id || v.id;",
+                      "  }",
+                      "  return null;",
+                      "}",
+                      "pm.test('No server error (not 5xx)', () => pm.expect(pm.response.code).to.be.below(500));",
+                      "if (pm.response.code !== 204) {",
+                      "  pm.test('Response is JSON with the standard envelope', () => {",
+                      "    pm.expect(__json, 'JSON body').to.be.an('object');",
+                      "    pm.expect(__json.success, 'success flag').to.be.a('boolean');",
+                      "    pm.expect(__json.message, 'message').to.be.a('string');",
+                      "  });",
+                      "}",
+                      "if (pm.response.code === 200) {",
+                      "  pm.test('Success response: success=true', () => pm.expect(__json.success).to.equal(true));",
+                      "  ",
+                      "} else if (pm.response.code >= 400) {",
+                      "  pm.test('Error response has success=false and a code', () => {",
+                      "    pm.expect(__json.success).to.equal(false);",
+                      "    pm.expect(__json.code, 'error code').to.be.a('string');",
+                      "  });",
+                      "  if (pm.response.code === 422) {",
+                      "    pm.test('Validation error lists the failing fields', () => pm.expect(Array.isArray(__json.errors)).to.equal(true));",
+                      "  }",
+                      "  if (pm.response.code === 401) {",
+                      "    pm.test('Not signed in: run one of the Login requests first', () => pm.expect(__json.code).to.be.oneOf(['UNAUTHORIZED', 'SESSION_EXPIRED']));",
+                      "  }",
+                      "}"
+                    ]
+                  }
+                }
+              ],
+              "response": []
+            },
+            {
+              "name": "GET /admin/products/:id/delete-check",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/admin/products/:id/delete-check",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "admin",
+                    "products",
+                    ":id",
+                    "delete-check"
+                  ],
+                  "query": [],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "{{productId}}"
+                    }
+                  ]
+                },
+                "description": "**Access:** Staff or owner - permission `catalog.read` (owner always passes)\n\n**Success status:** 200\n\n**Possible errors:** 422 VALIDATION_ERROR (body/query/params rejected; `errors[]` lists each field); 401 UNAUTHORIZED / SESSION_EXPIRED; 403 FORBIDDEN / PERMISSION_DENIED; 404 not found"
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "const __json = (() => { try { return pm.response.json(); } catch (e) { return null; } })();",
+                      "function __pickId(data) {",
+                      "  if (!data || typeof data !== 'object') return null;",
+                      "  if (data._id || data.id) return data._id || data.id;",
+                      "  const keys = Object.keys(data);",
+                      "  for (const k of keys) {",
+                      "    const v = data[k];",
+                      "    if (v && typeof v === 'object' && !Array.isArray(v) && (v._id || v.id)) return v._id || v.id;",
+                      "  }",
+                      "  return null;",
+                      "}",
+                      "pm.test('No server error (not 5xx)', () => pm.expect(pm.response.code).to.be.below(500));",
+                      "if (pm.response.code !== 204) {",
+                      "  pm.test('Response is JSON with the standard envelope', () => {",
+                      "    pm.expect(__json, 'JSON body').to.be.an('object');",
+                      "    pm.expect(__json.success, 'success flag').to.be.a('boolean');",
+                      "    pm.expect(__json.message, 'message').to.be.a('string');",
+                      "  });",
+                      "}",
+                      "if (pm.response.code === 200) {",
+                      "  pm.test('Success response: success=true', () => pm.expect(__json.success).to.equal(true));",
+                      "  if (__json && Array.isArray(__json.data) && __json.meta) {",
+                      "    pm.test('List response has pagination meta', () => {",
+                      "      pm.expect(__json.meta).to.be.an('object');",
+                      "      pm.expect(__json.meta.page === undefined || typeof __json.meta.page === 'number').to.equal(true);",
+                      "    });",
+                      "  }",
+                      "} else if (pm.response.code >= 400) {",
+                      "  pm.test('Error response has success=false and a code', () => {",
+                      "    pm.expect(__json.success).to.equal(false);",
+                      "    pm.expect(__json.code, 'error code').to.be.a('string');",
+                      "  });",
+                      "  if (pm.response.code === 422) {",
+                      "    pm.test('Validation error lists the failing fields', () => pm.expect(Array.isArray(__json.errors)).to.equal(true));",
+                      "  }",
+                      "  if (pm.response.code === 401) {",
+                      "    pm.test('Not signed in: run one of the Login requests first', () => pm.expect(__json.code).to.be.oneOf(['UNAUTHORIZED', 'SESSION_EXPIRED']));",
+                      "  }",
+                      "}"
+                    ]
+                  }
+                }
+              ],
+              "response": []
+            },
+            {
+              "name": "DELETE /admin/products/:id",
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/admin/products/:id",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "admin",
+                    "products",
+                    ":id"
+                  ],
+                  "query": [],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "{{productId}}"
+                    }
+                  ]
+                },
+                "description": "**Access:** Staff or owner - permission `catalog.manage` (owner always passes)\n\n**Success status:** 200\n\n**Possible errors:** 422 VALIDATION_ERROR (body/query/params rejected; `errors[]` lists each field); 401 UNAUTHORIZED / SESSION_EXPIRED; 403 FORBIDDEN / PERMISSION_DENIED; 404 not found; 409 conflict (a business rule or a duplicate, e.g. insufficient stock)"
               },
               "event": [
                 {
@@ -16745,7 +17049,7 @@
                 "description": "**Access:** Staff or owner - permission `settings.manage` (owner always passes)\n\n**Success status:** 200\n\n**Possible errors:** 422 VALIDATION_ERROR (body/query/params rejected; `errors[]` lists each field); 401 UNAUTHORIZED / SESSION_EXPIRED; 403 FORBIDDEN / PERMISSION_DENIED; 409 conflict (a business rule or a duplicate, e.g. insufficient stock)",
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"storeName\": \"Sample Name\",\n  \"tagline\": \"Sample text\",\n  \"contact\": {\n    \"email\": \"customer@example.com\",\n    \"phone\": \"03001234567\",\n    \"whatsapp\": \"Sample text\",\n    \"address\": \"House 1, Street 2, Block 3\"\n  },\n  \"social\": {\n    \"facebook\": \"https://example.com/sample\",\n    \"instagram\": \"https://example.com/sample\",\n    \"linkedin\": \"https://example.com/sample\",\n    \"tiktok\": \"https://example.com/sample\",\n    \"youtube\": \"https://example.com/sample\"\n  },\n  \"wholesale\": {\n    \"freightFlat\": 1,\n    \"taxPercent\": 1\n  },\n  \"checkout\": {\n    \"guestCheckoutEnabled\": true,\n    \"codEnabled\": true,\n    \"jazzcashEnabled\": true,\n    \"jazzcashManual\": {\n      \"enabled\": true,\n      \"accountTitle\": \"Sample title\",\n      \"walletNumber\": \"Sample text\",\n      \"instructions\": \"Sample text\"\n    }\n  },\n  \"returns\": {\n    \"enabled\": true,\n    \"windowDays\": 1\n  },\n  \"announcement\": {\n    \"enabled\": true,\n    \"text\": \"Sample text\",\n    \"link\": \"/shop\"\n  }\n}",
+                  "raw": "{\n  \"storeName\": \"Sample Name\"\n}",
                   "options": {
                     "raw": {
                       "language": "json"

@@ -168,7 +168,7 @@ export default function Header() {
 
       {/* 2. Global Header Navigation */}
       <header className="fixed top-[35px] w-full z-40 bg-surface/95 backdrop-blur-xl border-b border-border-subtle transition-all duration-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-8 h-20 flex items-center justify-between gap-3 sm:gap-1">
+        <div className="max-w-7xl mx-auto px-4 sm:px-8 h-20 flex items-center justify-between gap-3 sm:gap-6">
           {/* Brand Logo Emblem & Slogan */}
           <Link to="/" aria-label="PEHANLY - home" className="flex items-center gap-2 sm:gap-3 group shrink-0">
             <div className="relative w-10 h-10 sm:w-12 sm:h-12 rounded-full overflow-hidden shadow-sm border border-primary/20 bg-primary flex items-center justify-center transition-transform group-hover:scale-105">

@@ -13,6 +13,31 @@ const { manualWalletConfig } = require('./deliveryPolicy.service');
 
 const KEY = 'store';
 
+const { CHART_AUDIENCES } = require('../constants/SizeChart');
+
+/**
+ * Storefront size charts: only charts that are enabled AND actually have rows.
+ * A chart the merchant has not filled in is left out entirely, so the product page shows no empty table.
+ */
+function sizeChartsView(all = {}) {
+  const out = {};
+
+  for (const audience of CHART_AUDIENCES) {
+    const chart = all?.[audience];
+    const rows = (chart?.rows || []).filter((r) => r?.size);
+
+    if (!chart || chart.enabled === false || rows.length === 0) continue;
+
+    out[audience] = {
+      note: chart.note || '',
+      columns: (chart.columns || []).map(String),
+      rows: rows.map((r) => ({ size: r.size, values: (r.values || []).map(String) })),
+    };
+  }
+
+  return out;
+}
+
 function manualWalletView(s) {
   const w = manualWalletConfig(s);
   return w.enabled
@@ -75,6 +100,7 @@ async function buildPublicSettings() {
     },
     contact: s.contact || {},
     social: s.social || {},
+    sizeCharts: sizeChartsView(s.sizeCharts),
     checkout: {
       guestCheckoutEnabled: s.checkout?.guestCheckoutEnabled !== false,
       codEnabled: s.checkout?.codEnabled !== false,
@@ -114,6 +140,7 @@ async function updateSettings(patch, actor, req) {
 }
 
 module.exports = {
+  sizeChartsView,
   getSettings,
   getPublicSettings,
   updateSettings,

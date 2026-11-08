@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
-import { Store, Truck, CreditCard, Users, Save, Plus, Pencil, Trash2, X } from "lucide-react";
+import { Store, Truck, CreditCard, Users, Save, Plus, Pencil, Trash2, X, Ruler } from "lucide-react";
 import { settingsApi, shippingApi, SHIPPING_TYPES } from "../services/settingsApi";
 import { keys } from "../lib/queryKeys";
 import { useToastStore } from "../store/toastStore";
@@ -18,6 +18,7 @@ import { LoadingSkeleton } from "../components/common/LoadingSkeleton";
 import { EmptyState } from "../components/common/EmptyState";
 import { ErrorState } from "../components/common/ErrorState";
 import { ConfirmDialog } from "../components/common/ConfirmDialog";
+import { CHART_AUDIENCES, SizeChartsEditor, chartToBody, emptyChart, toChartForm, validateCharts } from "../components/settings/SizeChartsEditor";
 
 const inp = "w-full text-xs border border-slate-200 rounded-lg px-3 py-2 focus:ring-1 focus:ring-[#00130d] outline-none disabled:bg-slate-50 disabled:text-slate-500";
 const btn = "inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg transition-colors disabled:opacity-50";
@@ -29,6 +30,7 @@ const toForm = (s) => ({
   checkout: { guestCheckoutEnabled: s.checkout?.guestCheckoutEnabled !== false, codEnabled: s.checkout?.codEnabled !== false, jazzcashEnabled: Boolean(s.checkout?.jazzcashEnabled) },
   returns: { enabled: s.returns?.enabled !== false, windowDays: s.returns?.windowDays ?? 7 },
   announcement: { enabled: Boolean(s.announcement?.enabled), text: s.announcement?.text || "", link: s.announcement?.link || "" },
+  sizeCharts: Object.fromEntries(CHART_AUDIENCES.map(({ key }) => [key, s.sizeCharts?.[key] ? toChartForm(s.sizeCharts[key]) : emptyChart()])),
 });
 
 /* ------------------------------ Shipping rules ----------------------------- */
@@ -145,6 +147,7 @@ export const SettingsPage = () => {
     const days = Number(form.returns.windowDays);
     if (!Number.isInteger(days) || days < 0 || days > 365) e["returns.windowDays"] = "Whole number of days between 0 and 365.";
     if (form.announcement.link && !(/^\/(?!\/)/.test(form.announcement.link) || URL_RE.test(form.announcement.link))) e["announcement.link"] = 'Use an http(s) URL or a path starting with "/".';
+    Object.assign(e, validateCharts(form.sizeCharts));
     setErrors(e); setGeneral("");
     if (Object.keys(e).length) return;
     save.mutate({
@@ -153,10 +156,11 @@ export const SettingsPage = () => {
       social: Object.fromEntries(Object.entries(form.social).map(([k, v]) => [k, v.trim()]).filter(([, v]) => v)),
       checkout: form.checkout, returns: { enabled: form.returns.enabled, windowDays: days },
       announcement: { enabled: form.announcement.enabled, text: form.announcement.text.trim(), ...(form.announcement.link.trim() ? { link: form.announcement.link.trim() } : {}) },
+      sizeCharts: Object.fromEntries(CHART_AUDIENCES.map(({ key }) => [key, chartToBody(form.sizeCharts[key])])),
     });
   };
 
-  const tabs = [{ id: "profile", label: "Store Profile", icon: Store }, ...(can("shipping.read") ? [{ id: "shipping", label: "Shipping Rules", icon: Truck }] : []), { id: "checkout", label: "Checkout & Returns", icon: CreditCard }, ...(isOwner ? [{ id: "team", label: "Team & Access", icon: Users }] : [])];
+  const tabs = [{ id: "profile", label: "Store Profile", icon: Store }, ...(can("shipping.read") ? [{ id: "shipping", label: "Shipping Rules", icon: Truck }] : []), { id: "checkout", label: "Checkout & Returns", icon: CreditCard }, { id: "sizeCharts", label: "Size Charts", icon: Ruler }, ...(isOwner ? [{ id: "team", label: "Team & Access", icon: Users }] : [])];
   const err = (k) => errors[k];
   const SaveButton = <button type="submit" disabled={save.isPending || !dirty || !canManage} className="inline-flex items-center gap-2 px-5 py-2 bg-[#00130d] text-white text-xs font-semibold uppercase tracking-wider rounded-lg shadow-sm hover:bg-[#1a2634] transition-colors disabled:opacity-50"><Save className="w-4 h-4" />{save.isPending ? "Saving..." : "Save Settings"}</button>;
 
@@ -189,6 +193,7 @@ export const SettingsPage = () => {
               <label className="flex items-center gap-2 text-xs font-semibold text-slate-700"><Toggle checked={form.announcement.enabled} onChange={(v) => set("announcement.enabled")(v)} /> Show on storefront</label>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4"><FormField label="Text" error={err("announcement.text")}><input className={inp} maxLength={240} value={form.announcement.text} onChange={set("announcement.text")} /></FormField><FormField label="Link" error={err("announcement.link")}><input className={inp} maxLength={300} value={form.announcement.link} onChange={set("announcement.link")} /></FormField></div>
             </>}
+            {activeTab === "sizeCharts" && <SizeChartsEditor charts={form.sizeCharts} errors={errors} disabled={!canManage} onChange={(next) => setForm((f) => ({ ...f, sizeCharts: next }))} />}
             {activeTab === "checkout" && <>
               <div><h3 className="text-sm font-bold text-slate-900">Payment methods at checkout</h3><p className="text-xs text-slate-500">PEHAN LY supports Cash on Delivery and JazzCash. Gateway credentials are server-side secrets and are not editable here.</p></div>
               {[["codEnabled", "Cash on Delivery", "Customers pay the courier on delivery."], ["jazzcashEnabled", "JazzCash", "Online payment through the JazzCash gateway (requires server credentials)."], ["guestCheckoutEnabled", "Guest checkout", "Allow orders without a customer account."]].map(([k, label, hint]) => <div key={k} className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-200"><div><div className="text-xs font-bold text-slate-900">{label}</div><div className="text-[11px] text-slate-500">{hint}</div></div><Toggle checked={form.checkout[k]} onChange={(v) => set(`checkout.${k}`)(v)} /></div>)}

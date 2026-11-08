@@ -90,6 +90,9 @@ function productDetailView(product, variants, skus) {
   return {
     ...productCardView(product, variants, skus),
     description: product.description,
+    // Who the product is for. The product's own audience wins; otherwise the storefront falls back to the
+    // category's audience (which is where "kids" lives, since Product.audience is men|women|unisex).
+    categoryAudience: product.category?.audience || null,
     images: (product.generalImages || []).map((i) => ({ url: i.url, alt: i.alt })),
     seo: product.seo
       ? { title: product.seo.title, description: product.seo.description, canonicalUrl: product.seo.canonicalUrl, index: product.seo.index }
@@ -296,7 +299,7 @@ async function categoryFacets({ category, section, currency }) {
 }
 
 async function getProductBySlug(slug) {
-  const product = await Product.findOne({ slug, status: 'active', ...RETAIL_VISIBLE_FILTER }).populate('category', 'name slug isActive').lean();
+  const product = await Product.findOne({ slug, status: 'active', ...RETAIL_VISIBLE_FILTER }).populate('category', 'name slug isActive audience').lean();
 
   if (!product || product.category?.isActive === false) {
     throw ApiError.notFound('Product not found', 'PRODUCT_NOT_FOUND');

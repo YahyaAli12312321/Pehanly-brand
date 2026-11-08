@@ -115,3 +115,29 @@ Additive and backward compatible: every existing request/response keeps working 
 - `GET /catalog/facets?category=&section=&currency=` -> `{ total, sizes[], colors[], priceMin, priceMax, inStockCount, subcategories[{id,name,slug,count}] }` computed from live data.
 - Product detail `GET /catalog/products/:slug` is unchanged, so direct product URLs stay valid.
 - Products can only be assigned to an active category; a sub-category must belong to the selected parent. Duplicate category names/slugs are rejected.
+
+## Size charts
+
+- `StoreSettings.sizeCharts` holds one chart per audience: `kids`, `men`, `women`, `unisex`. A chart is
+  `{ enabled, note, columns: [String], rows: [{ size, values: [String] }] }` - `columns` are the table headings and
+  each row carries one value per column, so the same shape serves an age range (kids) or measurements (adults).
+- Admin-only, through the existing `PATCH /admin/settings` (`sizeCharts.<audience>`). Rows are replaced as a whole.
+- `GET /settings/public` returns `sizeCharts` with **only** the charts that are enabled and have rows; an unfilled
+  chart is omitted, so the storefront never renders an empty table or invented measurements.
+- Default data: the kids chart ships with the client's age ranges (X-Small 1-2 … 2-XL 11-12). Adult charts start empty.
+- `GET /catalog/products/:slug` additionally returns `categoryAudience`, so the storefront can pick the kids chart
+  (Product.audience is only men|women|unisex; "kids" comes from the category).
+
+## Deleting products and categories (admin, `catalog.manage`)
+
+| Method | Path | Notes |
+| --- | --- | --- |
+| GET | `/admin/products/:id/delete-check` | `{ id, name, status, variants, skus, blockers[], canDelete }` |
+| DELETE | `/admin/products/:id` | Permanent. 409 `PRODUCT_IN_USE` while an order, return/refund, quote or wholesale pack references it. |
+| GET | `/admin/categories/:id/delete-check` | `{ id, name, slug, blockers[], canDelete }` |
+| DELETE | `/admin/categories/:id` | Permanent. 409 `CATEGORY_NOT_EMPTY` while it has sub-categories or products in its subtree. |
+
+- A blocker is `{ key, label, count }`, so the dashboard can say exactly what is holding the record.
+- Deleting a product also removes its variants, their SKUs, the stock ledger for those SKUs and its reviews.
+  Orders keep their own name/SKU snapshots and are never touched - which is why a product with history cannot be deleted.
+- Both actions are written to the audit log (`product.delete`, `category.delete`).

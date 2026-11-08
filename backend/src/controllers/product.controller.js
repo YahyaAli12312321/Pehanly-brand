@@ -18,3 +18,6 @@ exports.setStatus = asyncHandler(async (req, res) => success(res, { message: 'Pr
 exports.bulk = asyncHandler(async (req, res) => success(res, { message: 'Bulk action completed', data: await products.bulk(req.validated.body, actor(req), req) }));
 exports.createVariant = asyncHandler(async (req, res) => created(res, { message: 'Variant created', data: await variants.create(req.validated.params.id, req.validated.body, actor(req), req) }));
 exports.updateVariant = asyncHandler(async (req, res) => success(res, { message: 'Variant updated', data: await variants.update(req.validated.params.id, req.validated.params.variantId, req.validated.body, actor(req), req) }));
+exports.deletePreview = asyncHandler(async (req, res) => success(res, { data: await svc.deletePreview(req.validated.params.id) }));
+exports.remove = asyncHandler(async (req, res) =>
+  success(res, { message: 'Product deleted', data: await svc.remove(req.validated.params.id, req.user, req) }));

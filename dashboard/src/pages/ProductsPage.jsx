@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { Plus, Eye, Edit2, Package, Star, Loader2 } from "lucide-react";
+import { Plus, Eye, Edit2, Trash2, Package, Star, Loader2 } from "lucide-react";
 import { productsApi } from "../services/productsApi";
 import { categoriesApi } from "../services/categoriesApi";
 import { keys } from "../lib/queryKeys";
@@ -20,6 +20,7 @@ import { ErrorState } from "../components/common/ErrorState";
 import { LoadingSkeleton } from "../components/common/LoadingSkeleton";
 import { ProductEditor } from "../components/products/ProductEditor";
 import { SALES_CHANNELS, channelOfProduct } from "../lib/salesChannel";
+import { DeleteEntityDialog } from "../components/common/DeleteEntityDialog";
 
 const selectCls = "text-xs bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-slate-700 font-medium focus:ring-1 focus:ring-[#00130d] outline-none";
 const priceRange = (s) => (s?.priceMin == null ? "—" : s.priceMin === s.priceMax ? formatMoney(s.priceMin) : `${formatMoney(s.priceMin)} – ${formatNumber(s.priceMax)}`);
@@ -42,6 +43,7 @@ export const ProductsPage = () => {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const [selected, setSelected] = useState([]);
+  const [deleting, setDeleting] = useState(null);
   const [editor, setEditor] = useState({ open: false, id: null });
   const [detailId, setDetailId] = useState(routeId || null);
   const debouncedSearch = useDebouncedValue(search, 350);
@@ -236,6 +238,7 @@ export const ProductsPage = () => {
                         <div className="inline-flex items-center gap-1">
                           <button onClick={() => openDetail(p._id)} title="Inspect product detail" className="p-1.5 text-slate-400 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-colors"><Eye className="w-4 h-4" /></button>
                           {canManage && <button onClick={() => openEditor(p._id)} title="Open product editor" className="p-1.5 text-slate-400 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors"><Edit2 className="w-4 h-4" /></button>}
+                          {canManage && <button onClick={() => setDeleting({ id: p._id, name: p.name })} title={`Delete ${p.name}`} aria-label={`Delete ${p.name}`} data-testid={`delete-product-${p._id}`} className="p-1.5 text-slate-400 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition-colors"><Trash2 className="w-4 h-4" /></button>}
                         </div>
                       </td>
                     </tr>;
@@ -247,6 +250,17 @@ export const ProductsPage = () => {
         {meta && items.length > 0 && <Pagination currentPage={meta.page} totalItems={meta.total} pageSize={meta.limit} onPageChange={(n) => { setPage(n); setSelected([]); }} onPageSizeChange={(n) => { setPageSize(n); setPage(1); }} labelSingular="product" labelPlural="products" />}
         {listQuery.isFetching && !listQuery.isLoading && <div className="px-4 py-1.5 text-[11px] text-slate-400 flex items-center gap-1.5 border-t border-slate-100"><Loader2 className="w-3 h-3 animate-spin" /> Updating…</div>}
       </div>
+
+      <DeleteEntityDialog
+    isOpen={Boolean(deleting)}
+    entity={deleting}
+    label="product"
+    deleteCheck={productsApi.deleteCheck}
+    onDelete={productsApi.remove}
+    onDeactivate={(id) => productsApi.setStatus(id, "inactive")}
+    onClose={() => setDeleting(null)}
+    onDeleted={(res) => { addToast(`“${res?.name || deleting?.name}” deleted.`); queryClient.invalidateQueries({ queryKey: keys.products.all }); setSelected((ids) => ids.filter((x) => x !== deleting?.id)); }}
+  />
 
       {editor.open && <ProductEditor isOpen productId={editor.id} canManage={canManage} onClose={closeEditor} />}
 

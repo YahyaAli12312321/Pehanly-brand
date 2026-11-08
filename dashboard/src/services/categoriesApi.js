@@ -1,8 +1,9 @@
-import { get, post, patch, cleanParams } from '../lib/apiClient';
+import { get, post, patch, del, cleanParams } from '../lib/apiClient';
 
 /**
  * Categories (admin). Backend: /admin/categories — requires catalog.read (GET) / catalog.manage (writes).
- * There is NO delete / duplicate / export endpoint, so the UI does not offer them.
+ * Delete is permanent and only allowed for an EMPTY category: ask `deleteCheck` first, which reports what is
+ * inside it (sub-categories, products). There is no duplicate / export endpoint.
  *
  * Item: { _id, name, slug, description, image{url,publicId,alt}|null, parentCategory{_id,name,slug}|null,
  *         audience, isActive, showOnHome, retailOnly, sortOrder, productsCount, seo, createdAt, updatedAt }
@@ -22,6 +23,9 @@ export const categoriesApi = {
   create: async (form) => (await post('/admin/categories', toBody(form))).data,
   update: async (id, form) => (await patch(`/admin/categories/${id}`, toBody(form))).data,
   setStatus: async (id, isActive) => (await patch(`/admin/categories/${id}/status`, { isActive })).data,
+  /** { id, name, slug, blockers: [{ key, label, count }], canDelete } */
+  deleteCheck: async (id) => (await get(`/admin/categories/${id}/delete-check`)).data,
+  remove: async (id) => (await del(`/admin/categories/${id}`)).data,
 };
 
 /** Form state -> exact body the (strict) validator accepts. Only defined keys are sent. */

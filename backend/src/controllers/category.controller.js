@@ -15,3 +15,6 @@ exports.update = asyncHandler(async (req, res) =>
   success(res, { message: 'Category updated', data: await svc.update(req.validated.params.id, req.validated.body) }));
 exports.setStatus = asyncHandler(async (req, res) =>
   success(res, { message: 'Category updated', data: await svc.setStatus(req.validated.params.id, req.validated.body.isActive) }));
+exports.deletePreview = asyncHandler(async (req, res) => success(res, { data: await svc.deletePreview(req.validated.params.id) }));
+exports.remove = asyncHandler(async (req, res) =>
+  success(res, { message: 'Category deleted', data: await svc.remove(req.validated.params.id, req.user, req) }));
